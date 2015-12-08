@@ -164,8 +164,6 @@ reset_user() returns text
 
 ## Examples
 
-### ex1
-
 ```
 #################################
 # OS command line, terminal 1
