@@ -233,10 +233,124 @@ psql -U dba_user <dbname>
 ---------------------------------
 -- psql command line, terminal 2
 ---------------------------------
--- verify there are no superusers that can login directly
+-- Verify there are no superusers that can login directly
 SELECT rolname FROM pg_authid WHERE rolsuper and rolcanlogin;
  rolname
 ---------
+(0 rows)
+
+-- Verify there are no unprivileged roles that can login directly
+-- that are granted a superuser role even if it is multiple layers
+-- removed
+DROP VIEW IF EXISTS roletree;
+CREATE OR REPLACE VIEW roletree AS
+WITH RECURSIVE
+roltree AS (
+  SELECT u.rolname AS rolname,
+         u.oid AS roloid,
+         u.rolcanlogin,
+         u.rolsuper,
+         '{}'::name[] AS rolparents,
+         NULL::oid AS parent_roloid,
+         NULL::name AS parent_rolname
+  FROM pg_catalog.pg_authid u
+  LEFT JOIN pg_catalog.pg_auth_members m on u.oid = m.member
+  LEFT JOIN pg_catalog.pg_authid g on m.roleid = g.oid
+  WHERE g.oid IS NULL
+  UNION ALL
+  SELECT u.rolname AS rolname,
+         u.oid AS roloid,
+         u.rolcanlogin,
+         u.rolsuper,
+         t.rolparents || g.rolname AS rolparents,
+         g.oid AS parent_roloid,
+         g.rolname AS parent_rolname
+  FROM pg_catalog.pg_authid u
+  JOIN pg_catalog.pg_auth_members m on u.oid = m.member
+  JOIN pg_catalog.pg_authid g on m.roleid = g.oid
+  JOIN roltree t on t.roloid = g.oid
+)
+SELECT
+  r.rolname,
+  r.roloid,
+  r.rolcanlogin,
+  r.rolsuper,
+  r.rolparents
+FROM roltree r
+ORDER BY 1;
+
+-- For example purposes, given this set of roles
+SELECT r.rolname, r.rolsuper, r.rolinherit,
+  r.rolcreaterole, r.rolcreatedb, r.rolcanlogin,
+  r.rolconnlimit, r.rolvaliduntil,
+  ARRAY(SELECT b.rolname
+        FROM pg_catalog.pg_auth_members m
+        JOIN pg_catalog.pg_roles b ON (m.roleid = b.oid)
+        WHERE m.member = r.oid) as memberof
+, r.rolreplication
+, r.rolbypassrls
+FROM pg_catalog.pg_roles r
+ORDER BY 1;
+                                    List of roles
+ Role name |                         Attributes                         | Member of  
+-----------+------------------------------------------------------------+------------
+ bob       |                                                            | {}
+ dba_user  |                                                            | {su}
+ joe       |                                                            | {newbs}
+ newbs     | Cannot login                                               | {}
+ postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
+ su        | No inheritance, Cannot login                               | {postgres}
+
+-- This query shows current status is not acceptable
+-- 1) postgres can login directly
+-- 2) dba_user can login and is able to escalate without using set_user()
+SELECT
+  ro.rolname,
+  ro.roloid,
+  ro.rolcanlogin,
+  ro.rolsuper,
+  ro.rolparents
+FROM roletree ro
+WHERE (ro.rolcanlogin AND ro.rolsuper)
+OR
+(
+    ro.rolcanlogin AND EXISTS
+    (
+      SELECT TRUE FROM roletree ri
+      WHERE ri.rolname = ANY (ro.rolparents)
+      AND ri.rolsuper
+    )
+);
+ rolname  | roloid | rolcanlogin | rolsuper |  rolparents   
+----------+--------+-------------+----------+---------------
+ dba_user |  16387 | t           | f        | {postgres,su}
+ postgres |     10 | t           | t        | {}
+(2 rows)
+
+-- Fix it
+REVOKE postgres FROM su;
+ALTER USER postgres NOLOGIN;
+
+-- Rerun the query - shows current status is acceptable
+SELECT
+  ro.rolname,
+  ro.roloid,
+  ro.rolcanlogin,
+  ro.rolsuper,
+  ro.rolparents
+FROM roletree ro
+WHERE (ro.rolcanlogin AND ro.rolsuper)
+OR
+(
+    ro.rolcanlogin AND EXISTS
+    (
+      SELECT TRUE FROM roletree ri
+      WHERE ri.rolname = ANY (ro.rolparents)
+      AND ri.rolsuper
+    )
+);
+ rolname | roloid | rolcanlogin | rolsuper | rolparents 
+---------+--------+-------------+----------+------------
 (0 rows)
 ```
 
