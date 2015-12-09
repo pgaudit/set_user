@@ -58,6 +58,7 @@ reset_user() returns text
 
   * Block changes to the log_statement setting while set_user() is active.
   * Block ALTER SYSTEM commands while set_user() is active.
+  * Add regression tests
 
 ## Latest Version
 
