@@ -24,13 +24,14 @@ perform needed maintenance tasks. Specifically, when an allowed user executes
 * log_statement setting is set to "all", meaning every SQL statement executed while in this state will also get logged.
 * If set_user.block_alter_system has been set to "on" in postgresql.conf, ```ALTER SYSTEM``` commands will be blocked.
 * If set_user.block_copy_program has been set to "on" in postgresql.conf, ```COPY PROGRAM``` commands will be blocked.
+* If set_user.block_log_statement has been set to "on" in postgresql.conf, ```SET log_statement``` and variations will be blocked.
 
 When finished with required actions as ```rolename```, the ```reset_user()``` function
 is executed to restore the original user. At that point, these actions occur:
 
 * Role transition is logged.
 * log_statement setting is set to its original value.
-* ```ALTER SYSTEM``` and ```COPY PROGRAM``` behavior return to normal.
+* Blocked command behaviors return to normal.
 
 The concept is to grant the EXECUTE privilege to the ```set_user()```
 function to otherwise unprivileged postgres users who can then
@@ -174,6 +175,7 @@ Then add these lines to the end of the file:
 shared_preload_libraries = 'set_user'
 set_user.block_alter_system = on
 set_user.block_copy_program = on
+set_user.block_log_statement = on
 ```
 
 Finally, restart PostgreSQL (method may vary):

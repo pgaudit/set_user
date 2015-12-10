@@ -47,11 +47,12 @@
 
 PG_MODULE_MAGIC;
 
-static char					   *save_log_statement = NULL;
-static Oid						save_OldUserId = InvalidOid;
+static char *save_log_statement = NULL;
+static Oid save_OldUserId = InvalidOid;
 static ProcessUtility_hook_type prev_hook = NULL;
-static bool	Block_AS = false;
-static bool	Block_CP = false;
+static bool Block_AS = false;
+static bool Block_CP = false;
+static bool Block_LS = false;
 
 static void PU_hook(Node *parsetree, const char *queryString,
 					ProcessUtilityContext context, ParamListInfo params,
@@ -162,6 +163,11 @@ _PG_init(void)
 							 NULL, &Block_CP, false, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
+	DefineCustomBoolVariable("set_user.block_log_statement",
+							 "Blocks \"SET log_statement\" commands",
+							 NULL, &Block_LS, false, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
+
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
 	ProcessUtility_hook = PU_hook;
@@ -194,6 +200,14 @@ PU_hook(Node *parsetree, const char *queryString,
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("COPY PROGRAM blocked by set_user config")));
+				break;
+			case T_VariableSetStmt:
+				if ((strcmp(((VariableSetStmt *) parsetree)->name,
+					 "log_statement") == 0) &&
+					Block_LS)
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("\"SET log_statement\" blocked by set_user config")));
 				break;
 			default:
 				break;
