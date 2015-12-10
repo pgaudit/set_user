@@ -56,9 +56,10 @@ in postgresql.conf and restart PostgreSQL.
 
 ## Caveats
 
-In its current state, this extension cannot prevent ```rolename``` from manually
-changing the log_statement setting to "none". However, the act of changing the
-setting would itself be logged.
+In its current state, this extension cannot prevent ```rolename``` from
+performing a variety of nefarious or otherwise undesireable actions.
+However, these actions will be logged providing an audit trail, which
+could also be used to trigger alerts.
 
 ## TODO
 
