@@ -178,29 +178,33 @@ PU_hook(Node *parsetree, const char *queryString,
 		ProcessUtilityContext context, ParamListInfo params,
 		DestReceiver *dest, char *completionTag)
 {
-	switch (nodeTag(parsetree))
+	/* if set_user has been used to transition, enforce set_user GUCs */
+	if (save_OldUserId != InvalidOid)
 	{
-		case T_AlterSystemStmt:
-			if (Block_AS)
-				ereport(ERROR,
-						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-						 errmsg("ALTER SYSTEM blocked by set_user config")));
-			break;
-		case T_CopyStmt:
-			if (((CopyStmt *) parsetree)->is_program && Block_CP)
-				ereport(ERROR,
-						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-						 errmsg("COPY PROGRAM blocked by set_user config")));
-			break;
-		default:
-			break;
-	}
+		switch (nodeTag(parsetree))
+		{
+			case T_AlterSystemStmt:
+				if (Block_AS)
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("ALTER SYSTEM blocked by set_user config")));
+				break;
+			case T_CopyStmt:
+				if (((CopyStmt *) parsetree)->is_program && Block_CP)
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("COPY PROGRAM blocked by set_user config")));
+				break;
+			default:
+				break;
+		}
 
-	if (prev_hook)
-		prev_hook(parsetree, queryString, context,
-				  params, dest, completionTag);
-	else
-		standard_ProcessUtility(parsetree, queryString,
-								context, params,
-								dest, completionTag);
+		if (prev_hook)
+			prev_hook(parsetree, queryString, context,
+					  params, dest, completionTag);
+		else
+			standard_ProcessUtility(parsetree, queryString,
+									context, params,
+									dest, completionTag);
+	}
 }
