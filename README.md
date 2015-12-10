@@ -30,6 +30,7 @@ is executed to restore the original user. At that point, these actions occur:
 
 * Role transition is logged.
 * log_statement setting is set to its original value.
+* ```ALTER SYSTEM``` and ```COPY PROGRAM``` behavior return to normal.
 
 The concept is to grant the EXECUTE privilege to the ```set_user()```
 function to otherwise unprivileged postgres users who can then
