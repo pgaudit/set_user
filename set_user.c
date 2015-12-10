@@ -1,8 +1,10 @@
 /*
  * set_user.c
  *
- * Similar to SET ROLE but with added logging
- * Joe Conway <mail@joeconway.com>
+ * Similar to SET ROLE but with added logging and some additional
+ * control over allowed actions
+ *
+ * Joe Conway <joe.conway@crunchydata.com>
  *
  * This code is released under the PostgreSQL license.
  *
@@ -37,6 +39,7 @@
 
 #include "catalog/pg_authid.h"
 #include "miscadmin.h"
+#include "tcop/utility.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
@@ -44,29 +47,28 @@
 
 PG_MODULE_MAGIC;
 
-char   *save_log_statement = NULL;
-Oid		save_OldUserId = InvalidOid;
+static char					   *save_log_statement = NULL;
+static Oid						save_OldUserId = InvalidOid;
+static ProcessUtility_hook_type prev_hook = NULL;
+static bool	Block_AS = false;
+static bool	Block_CP = false;
+
+static void PU_hook(Node *parsetree, const char *queryString,
+					ProcessUtilityContext context, ParamListInfo params,
+					DestReceiver *dest, char *completionTag);
 
 extern Datum set_user(PG_FUNCTION_ARGS);
+void _PG_init(void);
+void _PG_fini(void);
 
 #if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90100
 /* prior to 9.1 */
 #error "This extension only builds with PostgreSQL 9.1 or later"
-#elif PG_VERSION_NUM < 90300
-/* 9.1 & 9.2 */
-#define GETCONFIGOPTIONBYNAME(cname) GetConfigOptionByName(cname, NULL)
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
 #elif PG_VERSION_NUM < 90500
-/* 9.3 & 9.4 */
-#define GETCONFIGOPTIONBYNAME(cname) GetConfigOptionByName(cname, NULL)
+/* 9.1 - 9.4 */
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
-#elif PG_VERSION_NUM < 90600
-/* 9.5 */
-#define GETCONFIGOPTIONBYNAME(cname) GetConfigOptionByName(cname, NULL)
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
 #else
-/* master */
-#define GETCONFIGOPTIONBYNAME(cname) GetConfigOptionByName(cname, NULL, false)
+/* 9.5 & master */
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
 #endif
 
@@ -75,6 +77,7 @@ Datum
 set_user(PG_FUNCTION_ARGS)
 {
 	bool			argisnull = PG_ARGISNULL(0);
+	int				nargs = PG_NARGS();
 	HeapTuple		roleTup;
 	Oid				OldUserId = GetUserId();
 	char		   *olduser = GETUSERNAMEFROMID(OldUserId);
@@ -86,7 +89,7 @@ set_user(PG_FUNCTION_ARGS)
 	char		   *nsu = "";
 	MemoryContext	oldcontext;
 
-	if (!argisnull)
+	if (nargs == 1 && !argisnull)
 	{
 		if (save_OldUserId != InvalidOid)
 			elog(ERROR, "must reset previous user prior to setting again");
@@ -105,13 +108,14 @@ set_user(PG_FUNCTION_ARGS)
 		/* keep track of original userid and value of log_statement */
 		save_OldUserId = OldUserId;
 		oldcontext = MemoryContextSwitchTo(TopMemoryContext);
-		save_log_statement = GETCONFIGOPTIONBYNAME("log_statement");
+		save_log_statement = pstrdup(GetConfigOption("log_statement",
+													 false, false));
 		MemoryContextSwitchTo(oldcontext);
 
 		/* force logging of everything, at least initially */
 		SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
 	}
-	else
+	else if (nargs == 0 || (nargs == 1 && argisnull))
 	{
 		if (save_OldUserId == InvalidOid)
 			elog(ERROR, "must set user prior to resetting");
@@ -130,6 +134,9 @@ set_user(PG_FUNCTION_ARGS)
 		pfree(save_log_statement);
 		save_log_statement = NULL;
 	}
+	else
+		/* should not happen */
+		elog(ERROR, "unexpected argument combination");
 
 	elog(LOG, "%sRole %s transitioning to %sRole %s",
 			  OldUser_is_superuser ? su : nsu,
@@ -140,4 +147,60 @@ set_user(PG_FUNCTION_ARGS)
 	SetCurrentRoleId(NewUserId, NewUser_is_superuser);
 
 	PG_RETURN_TEXT_P(cstring_to_text("OK"));
+}
+
+void
+_PG_init(void)
+{
+	DefineCustomBoolVariable("set_user.block_alter_system",
+							 "Block ALTER SYSTEM commands",
+							 NULL, &Block_AS, false, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable("set_user.block_copy_program",
+							 "Blocks COPY PROGRAM commands",
+							 NULL, &Block_CP, false, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
+
+	/* Install hook */
+	prev_hook = ProcessUtility_hook;
+	ProcessUtility_hook = PU_hook;
+}
+
+void
+_PG_fini(void)
+{
+	ProcessUtility_hook = prev_hook;
+}
+
+static void
+PU_hook(Node *parsetree, const char *queryString,
+		ProcessUtilityContext context, ParamListInfo params,
+		DestReceiver *dest, char *completionTag)
+{
+	switch (nodeTag(parsetree))
+	{
+		case T_AlterSystemStmt:
+			if (Block_AS)
+				ereport(ERROR,
+						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+						 errmsg("ALTER SYSTEM blocked by set_user config")));
+			break;
+		case T_CopyStmt:
+			if (((CopyStmt *) parsetree)->is_program && Block_CP)
+				ereport(ERROR,
+						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+						 errmsg("COPY PROGRAM blocked by set_user config")));
+			break;
+		default:
+			break;
+	}
+
+	if (prev_hook)
+		prev_hook(parsetree, queryString, context,
+				  params, dest, completionTag);
+	else
+		standard_ProcessUtility(parsetree, queryString,
+								context, params,
+								dest, completionTag);
 }
