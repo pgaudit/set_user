@@ -64,7 +64,6 @@ setting would itself be logged.
 
 The following changes/enhancements are contemplated:
 
-* Block changes to the log_statement setting while set_user() is active.
 * Add regression tests
 
 ## Latest Version
