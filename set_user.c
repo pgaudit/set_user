@@ -31,10 +31,50 @@
 #include "postgres.h"
 
 #include "pg_config.h"
-#if PG_VERSION_NUM < 90300
-#include "access/htup.h"
+#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90100
+/* prior to 9.1 */
+#error "This extension only builds with PostgreSQL 9.1 or later"
+#elif PG_VERSION_NUM < 90200
+/* 9.1 */
+
+#elif PG_VERSION_NUM < 90300
+/* 9.2 */
+
+#elif PG_VERSION_NUM < 90400
+/* 9.3 */
+#define HAS_HTUP_DETAILS
+#define HAS_COPY_PROGRAM
+#define HAS_PROCESSUTILITYCONTEXT
+
+#elif PG_VERSION_NUM < 90500
+/* 9.4 */
+#define HAS_HTUP_DETAILS
+#define HAS_ALTER_SYSTEM
+#define HAS_COPY_PROGRAM
+#define HAS_PROCESSUTILITYCONTEXT
+
+#elif PG_VERSION_NUM < 90600
+/* 9.5 */
+#define HAS_HTUP_DETAILS
+#define HAS_ALTER_SYSTEM
+#define HAS_COPY_PROGRAM
+#define HAS_TWO_ARG_GETUSERNAMEFROMID
+#define HAS_PROCESSUTILITYCONTEXT
+
 #else
+/* master */
+#define HAS_HTUP_DETAILS
+#define HAS_ALTER_SYSTEM
+#define HAS_COPY_PROGRAM
+#define HAS_TWO_ARG_GETUSERNAMEFROMID
+#define HAS_PROCESSUTILITYCONTEXT
+
+#endif
+
+#ifdef HAS_HTUP_DETAILS
 #include "access/htup_details.h"
+#else
+#include "access/htup.h"
 #endif
 
 #include "catalog/pg_authid.h"
@@ -50,28 +90,42 @@ PG_MODULE_MAGIC;
 static char *save_log_statement = NULL;
 static Oid save_OldUserId = InvalidOid;
 static ProcessUtility_hook_type prev_hook = NULL;
+
+#ifdef HAS_ALTER_SYSTEM
+/* 9.4 & up */
 static bool Block_AS = false;
+#endif
+
+#ifdef HAS_COPY_PROGRAM
+/* 9.3 & up */
 static bool Block_CP = false;
+#endif
+
 static bool Block_LS = false;
 
+#ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
+/* 9.5 & master */
+#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
+#else
+/* 9.1 - 9.4 */
+#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
+#endif
+
+#ifdef HAS_PROCESSUTILITYCONTEXT
+/* 9.3 & up */
 static void PU_hook(Node *parsetree, const char *queryString,
 					ProcessUtilityContext context, ParamListInfo params,
 					DestReceiver *dest, char *completionTag);
+#else
+/* 9.1 - 9.2 */
+static void PU_hook(Node *parsetree, const char *queryString,
+					ParamListInfo params, bool isTopLevel,
+					DestReceiver *dest, char *completionTag);
+#endif
 
 extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
 void _PG_fini(void);
-
-#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90100
-/* prior to 9.1 */
-#error "This extension only builds with PostgreSQL 9.1 or later"
-#elif PG_VERSION_NUM < 90500
-/* 9.1 - 9.4 */
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
-#else
-/* 9.5 & master */
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
-#endif
 
 PG_FUNCTION_INFO_V1(set_user);
 Datum
@@ -83,9 +137,9 @@ set_user(PG_FUNCTION_ARGS)
 	Oid				OldUserId = GetUserId();
 	char		   *olduser = GETUSERNAMEFROMID(OldUserId);
 	bool			OldUser_is_superuser = superuser_arg(OldUserId);
-	Oid				NewUserId;
-	char		   *newuser;
-	bool			NewUser_is_superuser;
+	Oid				NewUserId = InvalidOid;
+	char		   *newuser = NULL;
+	bool			NewUser_is_superuser = false;
 	char		   *su = "Superuser ";
 	char		   *nsu = "";
 	MemoryContext	oldcontext;
@@ -153,15 +207,21 @@ set_user(PG_FUNCTION_ARGS)
 void
 _PG_init(void)
 {
+#ifdef HAS_ALTER_SYSTEM
+/* 9.4 & up */
 	DefineCustomBoolVariable("set_user.block_alter_system",
 							 "Block ALTER SYSTEM commands",
 							 NULL, &Block_AS, false, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
+#endif
 
+#ifdef HAS_COPY_PROGRAM
+/* 9.3 & up */
 	DefineCustomBoolVariable("set_user.block_copy_program",
 							 "Blocks COPY PROGRAM commands",
 							 NULL, &Block_CP, false, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
+#endif
 
 	DefineCustomBoolVariable("set_user.block_log_statement",
 							 "Blocks \"SET log_statement\" commands",
@@ -179,28 +239,45 @@ _PG_fini(void)
 	ProcessUtility_hook = prev_hook;
 }
 
+#ifdef HAS_PROCESSUTILITYCONTEXT
+/* 9.3 & up */
 static void
 PU_hook(Node *parsetree, const char *queryString,
 		ProcessUtilityContext context, ParamListInfo params,
 		DestReceiver *dest, char *completionTag)
+#else
+/* 9.1 - 9.2 */
+static void
+PU_hook(Node *parsetree, const char *queryString,
+		ParamListInfo params, bool isTopLevel,
+		DestReceiver *dest, char *completionTag)
+#endif
 {
 	/* if set_user has been used to transition, enforce set_user GUCs */
 	if (save_OldUserId != InvalidOid)
 	{
 		switch (nodeTag(parsetree))
 		{
+#ifdef HAS_ALTER_SYSTEM
+/* 9.4 & up */
 			case T_AlterSystemStmt:
 				if (Block_AS)
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("ALTER SYSTEM blocked by set_user config")));
 				break;
+#endif
+
+#ifdef HAS_COPY_PROGRAM
+/* 9.3 & up */
 			case T_CopyStmt:
 				if (((CopyStmt *) parsetree)->is_program && Block_CP)
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("COPY PROGRAM blocked by set_user config")));
 				break;
+#endif
+
 			case T_VariableSetStmt:
 				if ((strcmp(((VariableSetStmt *) parsetree)->name,
 					 "log_statement") == 0) &&
@@ -213,6 +290,8 @@ PU_hook(Node *parsetree, const char *queryString,
 				break;
 		}
 
+#ifdef HAS_PROCESSUTILITYCONTEXT
+/* 9.3 & up */
 		if (prev_hook)
 			prev_hook(parsetree, queryString, context,
 					  params, dest, completionTag);
@@ -220,5 +299,15 @@ PU_hook(Node *parsetree, const char *queryString,
 			standard_ProcessUtility(parsetree, queryString,
 									context, params,
 									dest, completionTag);
+#else
+/* 9.1 - 9.2 */
+		if (prev_hook)
+			prev_hook(parsetree, queryString, params,
+			isTopLevel, dest, completionTag);
+		else
+			standard_ProcessUtility(parsetree, queryString,
+									params, isTopLevel,
+									dest, completionTag);
+#endif
 	}
 }
