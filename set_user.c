@@ -291,6 +291,10 @@ PU_hook(Node *parsetree, const char *queryString,
 		}
 	}
 
+	/*
+	 * Now pass-off handling either to the previous ProcessUtility hook
+	 * or to the standard ProcessUtility.
+	 */
 #ifdef HAS_PROCESSUTILITYCONTEXT
 /* 9.3 & up */
 	if (prev_hook)
