@@ -11,6 +11,14 @@ reset_user() returns text
 
 ```rolename``` is the role to be transitioned to.
 
+## Requirements
+
+* Add set_user to shared_preload_libraries in postgresql.conf.
+* Optionally, the following custom parameters may be set to control their respective commands:
+** set_user.block_alter_system = on
+** set_user.block_copy_program = on
+** set_user.block_log_statement = on
+
 ## Description
 
 This PostgreSQL extension allows privilege escalation with enhanced logging and
@@ -61,11 +69,16 @@ performing a variety of nefarious or otherwise undesireable actions.
 However, these actions will be logged providing an audit trail, which
 could also be used to trigger alerts.
 
+Although this extension compiles and works with all supported versions
+of PostgreSQL starting with PostgreSQL 9.1, all features are not supported
+until PostgreSQL 9.4 or higher. The ALTER SYSTEM command does not
+exist prior to 9.4 and COPY PROGRAM does not exist prior to 9.3.
+
 ## TODO
 
 The following changes/enhancements are contemplated:
 
-* Add regression tests
+* Improve regression tests
 
 ## Latest Version
 
