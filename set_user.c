@@ -289,25 +289,25 @@ PU_hook(Node *parsetree, const char *queryString,
 			default:
 				break;
 		}
+	}
 
 #ifdef HAS_PROCESSUTILITYCONTEXT
 /* 9.3 & up */
-		if (prev_hook)
-			prev_hook(parsetree, queryString, context,
-					  params, dest, completionTag);
-		else
-			standard_ProcessUtility(parsetree, queryString,
-									context, params,
-									dest, completionTag);
+	if (prev_hook)
+		prev_hook(parsetree, queryString, context,
+				  params, dest, completionTag);
+	else
+		standard_ProcessUtility(parsetree, queryString,
+								context, params,
+								dest, completionTag);
 #else
 /* 9.1 - 9.2 */
-		if (prev_hook)
-			prev_hook(parsetree, queryString, params,
-			isTopLevel, dest, completionTag);
-		else
-			standard_ProcessUtility(parsetree, queryString,
-									params, isTopLevel,
-									dest, completionTag);
+	if (prev_hook)
+		prev_hook(parsetree, queryString, params,
+		isTopLevel, dest, completionTag);
+	else
+		standard_ProcessUtility(parsetree, queryString,
+								params, isTopLevel,
+								dest, completionTag);
 #endif
-	}
 }
