@@ -15,9 +15,9 @@ reset_user() returns text
 
 * Add set_user to shared_preload_libraries in postgresql.conf.
 * Optionally, the following custom parameters may be set to control their respective commands:
-..* set_user.block_alter_system = on
-..* set_user.block_copy_program = on
-..* set_user.block_log_statement = on
+  * set_user.block_alter_system = on
+  * set_user.block_copy_program = on
+  * set_user.block_log_statement = on
 
 ## Description
 
