@@ -207,7 +207,12 @@ CREATE EXTENSION set_user;
 
 ## GUC Parameters
 
-##### (currently none used)
+* Block ALTER SYSTEM commands
+  * set_user.block_alter_system = on
+* Block COPY PROGRAM commands
+  * set_user.block_copy_program = on
+* Block SET log_statement commands
+  * set_user.block_log_statement = on
 
 ## Examples
 
