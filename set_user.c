@@ -211,7 +211,7 @@ _PG_init(void)
 /* 9.4 & up */
 	DefineCustomBoolVariable("set_user.block_alter_system",
 							 "Block ALTER SYSTEM commands",
-							 NULL, &Block_AS, false, PGC_SIGHUP,
+							 NULL, &Block_AS, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 #endif
 
@@ -219,13 +219,13 @@ _PG_init(void)
 /* 9.3 & up */
 	DefineCustomBoolVariable("set_user.block_copy_program",
 							 "Blocks COPY PROGRAM commands",
-							 NULL, &Block_CP, false, PGC_SIGHUP,
+							 NULL, &Block_CP, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 #endif
 
 	DefineCustomBoolVariable("set_user.block_log_statement",
 							 "Blocks \"SET log_statement\" commands",
-							 NULL, &Block_LS, false, PGC_SIGHUP,
+							 NULL, &Block_LS, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
 	/* Install hook */

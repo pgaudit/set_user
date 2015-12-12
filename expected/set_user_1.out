@@ -1,59 +1,94 @@
 CREATE EXTENSION set_user;
-
 -- Ensure the library is loaded.
 LOAD 'set_user';
-
 -- Clean up in case a prior regression run failed
 -- First suppress NOTICE messages when users/groups don't exist
 SET client_min_messages TO 'warning';
 DROP USER IF EXISTS dba, bob, joe, newbs, su;
 RESET client_min_messages;
-
 -- Create some users to work with
 CREATE USER dba;
 CREATE USER bob;
 CREATE USER joe;
 CREATE ROLE newbs;
 CREATE ROLE su NOINHERIT;
-
 -- dba is the role we want to allow to execute set_user()
 GRANT EXECUTE ON FUNCTION set_user(text) TO dba;
 GRANT newbs TO bob;
 -- joe will be able to escalate without set_user() via su
 GRANT su TO joe;
 GRANT postgres TO su;
-
 -- test set_user
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
 SELECT set_user('postgres');
+ set_user 
+----------
+ OK
+(1 row)
+
 SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | postgres
+(1 row)
 
 -- ALTER SYSTEM should fail
 ALTER SYSTEM SET wal_level = minimal;
-
+ERROR:  syntax error at or near "SYSTEM"
+LINE 1: ALTER SYSTEM SET wal_level = minimal;
+              ^
 -- COPY PROGRAM should fail
 COPY (select 42) TO PROGRAM 'cat';
-
+ERROR:  COPY PROGRAM blocked by set_user config
 -- SET log_statement should fail
 SET log_statement = 'none';
+ERROR:  "SET log_statement" blocked by set_user config
 SET log_statement = DEFAULT;
+ERROR:  "SET log_statement" blocked by set_user config
 RESET log_statement;
+ERROR:  "SET log_statement" blocked by set_user config
 BEGIN; SET LOCAL log_statement = 'none'; ABORT;
-
+ERROR:  "SET log_statement" blocked by set_user config
 -- test reset_user
 SELECT reset_user();
+ reset_user 
+------------
+ OK
+(1 row)
+
 SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
 
 RESET SESSION AUTHORIZATION;
 ALTER SYSTEM SET wal_level = minimal;
+ERROR:  syntax error at or near "SYSTEM"
+LINE 1: ALTER SYSTEM SET wal_level = minimal;
+              ^
 COPY (select 42) TO PROGRAM 'cat';
 SET log_statement = DEFAULT;
-
 -- this is an example of how we might audit existing roles
 SET SESSION AUTHORIZATION dba;
 SELECT set_user('postgres');
+ set_user 
+----------
+ OK
+(1 row)
+
 SELECT rolname FROM pg_authid WHERE rolsuper and rolcanlogin;
+ rolname  
+----------
+ postgres
+(1 row)
+
 CREATE OR REPLACE VIEW roletree AS
 WITH RECURSIVE
 roltree AS (
@@ -89,7 +124,6 @@ SELECT
   r.rolparents
 FROM roltree r
 ORDER BY 1;
-
 -- this will show unacceptable results
 -- since postgres can log in directly and
 -- joe can escalate via su to postgres
@@ -109,6 +143,11 @@ OR
       AND ri.rolsuper
     )
 );
+ rolname  | rolcanlogin | rolsuper |  rolparents   
+----------+-------------+----------+---------------
+ joe      | t           | f        | {postgres,su}
+ postgres | t           | t        | {}
+(2 rows)
 
 -- here is how we fix the environment
 -- running this in a transaction that will be aborted
@@ -117,7 +156,6 @@ OR
 BEGIN;
 REVOKE postgres FROM su;
 ALTER USER postgres NOLOGIN;
-
 -- retest, this time successfully
 SELECT
   ro.rolname,
@@ -135,6 +173,9 @@ OR
       AND ri.rolsuper
     )
 );
+ rolname | rolcanlogin | rolsuper | rolparents 
+---------+-------------+----------+------------
+(0 rows)
 
 -- undo those changes
 ABORT;
