@@ -15,9 +15,9 @@ reset_user() returns text
 
 * Add set_user to shared_preload_libraries in postgresql.conf.
 * Optionally, the following custom parameters may be set to control their respective commands:
-  * set_user.block_alter_system = on
-  * set_user.block_copy_program = on
-  * set_user.block_log_statement = on
+  * set_user.block_alter_system = off (defaults to "on")
+  * set_user.block_copy_program = off (defaults to "on")
+  * set_user.block_log_statement = off (defaults to "on")
 
 ## Description
 
@@ -30,9 +30,9 @@ perform needed maintenance tasks. Specifically, when an allowed user executes
 * The current effective user becomes ```rolename```.
 * The role transition is logged, with specific notation if ```rolename``` is a superuser.
 * log_statement setting is set to "all", meaning every SQL statement executed while in this state will also get logged.
-* If set_user.block_alter_system has been set to "on" in postgresql.conf, ```ALTER SYSTEM``` commands will be blocked.
-* If set_user.block_copy_program has been set to "on" in postgresql.conf, ```COPY PROGRAM``` commands will be blocked.
-* If set_user.block_log_statement has been set to "on" in postgresql.conf, ```SET log_statement``` and variations will be blocked.
+* If set_user.block_alter_system is set to "on", ```ALTER SYSTEM``` commands will be blocked.
+* If set_user.block_copy_program is set to "on", ```COPY PROGRAM``` commands will be blocked.
+* If set_user.block_log_statement is set to "on", ```SET log_statement``` and variations will be blocked.
 
 When finished with required actions as ```rolename```, the ```reset_user()``` function
 is executed to restore the original user. At that point, these actions occur:
@@ -185,10 +185,13 @@ $> vi $PGDATA/postgresql.conf
 
 Then add these lines to the end of the file:
 ```
+# Add set_user to any existing list
 shared_preload_libraries = 'set_user'
-set_user.block_alter_system = on
-set_user.block_copy_program = on
-set_user.block_log_statement = on
+# The following lines are only required to turn off the
+# blocking of each respective command if desired
+set_user.block_alter_system = off       #defaults to "on"
+set_user.block_copy_program = off       #defaults to "on"
+set_user.block_log_statement = off      #defaults to "on"
 ```
 
 Finally, restart PostgreSQL (method may vary):
