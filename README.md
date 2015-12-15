@@ -80,11 +80,6 @@ The following changes/enhancements are contemplated:
 
 * Improve regression tests
 
-## Latest Version
-
-Details of the latest version can be acquired by contacting Crunchy
-Data Solutions, Inc. (see Contact information below)
-
 ## Installation
 
 ### Requirements
@@ -413,9 +408,4 @@ OR
 
 Please see the [LICENSE](./LICENSE) file.
 
-##  Contacts
 
-Crunchy SELinux PGSQL is provided as a component of Crunchy Certified PostgreSQL.
-Crunchy Data provides supported, packaged versions of Crunchy SELinux PGSQL and
-Crunchy Certified PostgreSQL for commercial users.  For more information, please
-contact info@crunchydata.com
