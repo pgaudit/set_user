@@ -167,7 +167,7 @@ $> initdb -D /path/to/data/directory
 $> createdb <database>
 ```
 
-####### Install ```set_user``` functions:
+###### Install ```set_user``` functions:
 
 Edit postgresql.conf and add ```set_user``` to the shared_preload_libraries
 line, optionally also setting block_alter_system and/or block_copy_program.
@@ -192,7 +192,7 @@ set_user.block_log_statement = off      #defaults to "on"
 Finally, restart PostgreSQL (method may vary):
 
 ```
-#> service postgresql restart
+$> service postgresql restart
 ```
 
 Install the extension into your database:
