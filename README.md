@@ -116,7 +116,7 @@ $> cd contrib
 Clone ```set_user``` extension:
 
 ```bash
-$> git clone https://github.com/crunchydata/set_user
+$> git clone https://github.com/pgaudit/set_user
 ```
 
 Change to ```set_user``` directory:
