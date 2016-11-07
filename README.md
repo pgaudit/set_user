@@ -18,13 +18,15 @@ reset_user() returns text
   * set_user.block_alter_system = off (defaults to "on")
   * set_user.block_copy_program = off (defaults to "on")
   * set_user.block_log_statement = off (defaults to "on")
+  * set_user.block_superuser = on (defaults to "off")
 
 ## Description
 
-This PostgreSQL extension allows privilege escalation with enhanced logging and
-control. It provides an additional layer of logging and control when unprivileged
-users must escalate themselves to superuser or object owner roles in order to
-perform needed maintenance tasks. Specifically, when an allowed user executes
+This PostgreSQL extension allows switching users and optionally privilege
+escalation with enhanced logging and control. It provides an additional layer
+of logging and control when unprivileged users must escalate themselves to
+superuser or object owner roles in order to perform needed maintenance tasks.
+Specifically, when an allowed user executes
 ```set_user('rolename')```, several actions occur:
 
 * The current effective user becomes ```rolename```.
@@ -33,6 +35,7 @@ perform needed maintenance tasks. Specifically, when an allowed user executes
 * If set_user.block_alter_system is set to "on", ```ALTER SYSTEM``` commands will be blocked.
 * If set_user.block_copy_program is set to "on", ```COPY PROGRAM``` commands will be blocked.
 * If set_user.block_log_statement is set to "on", ```SET log_statement``` and variations will be blocked.
+* If set_user.block_superuser is set to "on", transition to a superuser role will be blocked.
 
 When finished with required actions as ```rolename```, the ```reset_user()``` function
 is executed to restore the original user. At that point, these actions occur:
@@ -43,9 +46,10 @@ is executed to restore the original user. At that point, these actions occur:
 
 The concept is to grant the EXECUTE privilege to the ```set_user()```
 function to otherwise unprivileged postgres users who can then
-escalate themselves when needed to perform specific superuser actions.
-The enhanced logging ensures an audit trail of what actions are taken
-while privileges are escalated.
+transition to other roles, possibly escalating themselves to superuser,
+when needed to perform specific actions. The enhanced logging ensures
+an audit trail of what actions are taken while privileges are altered
+to those of the alternate role.
 
 Once one or more unprivileged users are able to run ```set_user()```,
 the superuser account (normally ```postgres```) can be altered to NOLOGIN,
@@ -61,6 +65,9 @@ the existing superuser roles.
 Note that for the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM```
 to work properly, you must include ```set_user``` in shared_preload_libraries
 in postgresql.conf and restart PostgreSQL.
+
+Also note that ```set_user('rolename')``` may not be executed from within
+an explicit transaction block.
 
 ## Caveats
 
@@ -170,7 +177,7 @@ $> createdb <database>
 ###### Install ```set_user``` functions:
 
 Edit postgresql.conf and add ```set_user``` to the shared_preload_libraries
-line, optionally also setting block_alter_system and/or block_copy_program.
+line, optionally also changing custom settings as mentioned above.
 
 First edit postgresql.conf in your favorite editor:
 
@@ -182,11 +189,12 @@ Then add these lines to the end of the file:
 ```
 # Add set_user to any existing list
 shared_preload_libraries = 'set_user'
-# The following lines are only required to turn off the
+# The following lines are only required to modify the
 # blocking of each respective command if desired
 set_user.block_alter_system = off       #defaults to "on"
 set_user.block_copy_program = off       #defaults to "on"
 set_user.block_log_statement = off      #defaults to "on"
+set_user.block_superuser = on           #defaults to "off"
 ```
 
 Finally, restart PostgreSQL (method may vary):
@@ -211,6 +219,9 @@ CREATE EXTENSION set_user;
   * set_user.block_copy_program = on
 * Block SET log_statement commands
   * set_user.block_log_statement = on
+* Block switching to a superuser role
+  * set_user.block_superuser = on
+
 
 ## Examples
 

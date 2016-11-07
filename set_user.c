@@ -103,6 +103,7 @@ static bool Block_CP = false;
 #endif
 
 static bool Block_LS = false;
+static bool Block_SU = false;
 
 #ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
 /* 9.5 & master */
@@ -172,6 +173,11 @@ set_user(PG_FUNCTION_ARGS)
 		NewUser_is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 		ReleaseSysCache(roleTup);
 
+		if (NewUser_is_superuser && Block_SU)
+			ereport(ERROR,
+					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+					 errmsg("Switching to superuser blocked by set_user config")));
+
 		/* keep track of original userid and value of log_statement */
 		save_OldUserId = OldUserId;
 		oldcontext = MemoryContextSwitchTo(TopMemoryContext);
@@ -239,6 +245,11 @@ _PG_init(void)
 	DefineCustomBoolVariable("set_user.block_log_statement",
 							 "Blocks \"SET log_statement\" commands",
 							 NULL, &Block_LS, true, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
+
+	DefineCustomBoolVariable("set_user.block_superuser",
+							 "Blocks switching to superuser",
+							 NULL, &Block_SU, false, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
 	/* Install hook */
