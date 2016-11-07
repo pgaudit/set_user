@@ -77,6 +77,7 @@
 #include "access/htup.h"
 #endif
 
+#include "access/xact.h"
 #include "catalog/pg_authid.h"
 #include "miscadmin.h"
 #include "tcop/utility.h"
@@ -143,6 +144,17 @@ set_user(PG_FUNCTION_ARGS)
 	char		   *su = "Superuser ";
 	char		   *nsu = "";
 	MemoryContext	oldcontext;
+
+	/*
+	 * Disallow SET ROLE inside a transaction block. The
+	 * semantics are too strange, and I cannot think of a
+	 * good use case where it would make sense anyway.
+	 * Perhaps one day we will need to rethink this...
+	 */
+	if (IsTransactionBlock())
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("set_user: SET ROLE not allowed within transaction block"),
+						errhint("Use SET ROLE outside transaction block instead.")));
 
 	if (nargs == 1 && !argisnull)
 	{
