@@ -184,11 +184,9 @@ set_user(PG_FUNCTION_ARGS)
 	}
 	else if (nargs == 0 || (nargs == 1 && argisnull))
 	{
+		/* set_user not active, nothing to do */
 		if (save_OldUserId == InvalidOid)
-		{
-			elog(NOTICE, "set_user not active, nothing to do");
 			PG_RETURN_TEXT_P(cstring_to_text("OK"));
-		}
 
 		/* get original userid to whom we will reset */
 		NewUserId = save_OldUserId;
