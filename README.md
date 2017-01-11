@@ -4,12 +4,15 @@
 
 ```
 set_user(text rolename) returns text
+set_user(text rolename, text token) returns text
 reset_user() returns text
+reset_user(text token) returns text
 ```
 
 ## Inputs
 
 ```rolename``` is the role to be transitioned to.
+```token``` if provided during set_user is saved, and then required to be provided again for reset.
 
 ## Requirements
 
@@ -37,6 +40,9 @@ Specifically, when an allowed user executes
 * If set_user.block_log_statement is set to "on", ```SET log_statement``` and variations will be blocked.
 * If set_user.block_superuser is set to "on", transition to a superuser role will be blocked.
 
+Additionally, with ```set_user('rolename','token')```:
+* The ```token``` is stored in session lifetime memory.
+
 When finished with required actions as ```rolename```, the ```reset_user()``` function
 is executed to restore the original user. At that point, these actions occur:
 
@@ -44,17 +50,23 @@ is executed to restore the original user. At that point, these actions occur:
 * log_statement setting is set to its original value.
 * Blocked command behaviors return to normal.
 
+If ```set_user```, was provided with a ```token```, then ```reset_user('token')``` must be called instead of ```reset_user()```:
+* The provided ```token``` is compared with the stored token.
+* If the tokens do not match, or if a ```token``` was provided to ```set_user``` but not ```reset_user```, an ERROR occurs.
+
 The concept is to grant the EXECUTE privilege to the ```set_user()```
 function to otherwise unprivileged postgres users who can then
 transition to other roles, possibly escalating themselves to superuser,
 when needed to perform specific actions. The enhanced logging ensures
 an audit trail of what actions are taken while privileges are altered
-to those of the alternate role.
+to those of the alternate role. Note that if set_user.block_superuser
+is turned on, superuser escalation will be blocked by ```set_user()```.
 
-Once one or more unprivileged users are able to run ```set_user()```,
-the superuser account (normally ```postgres```) can be altered to NOLOGIN,
-preventing any direct database connection by a superuser which would
-bypass the enhanced logging.
+Once one or more unprivileged users are able to run ```set_user()```
+in order to escalate their privileges, the superuser account
+(normally ```postgres```) can be altered to NOLOGIN, preventing any
+direct database connection by a superuser which would bypass the
+enhanced logging.
 
 Naturally for this to work as expected, the PostgreSQL cluster must
 be audited to ensure there are no other PostgreSQL roles existing which
@@ -62,11 +74,16 @@ are both superuser and can log in. Additionally there must be no
 unprivileged PostgreSQL roles which have been granted access to one of
 the existing superuser roles.
 
-Note that for the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM```
+Notes:
+
+If set_user.block_log_statement is set to "off", the log_statement setting
+is left unchanged.
+
+For the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM```
 to work properly, you must include ```set_user``` in shared_preload_libraries
 in postgresql.conf and restart PostgreSQL.
 
-Also note that ```set_user('rolename')``` may not be executed from within
+```set_user('rolename')``` may not be executed from within
 an explicit transaction block.
 
 ## Caveats

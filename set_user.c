@@ -79,6 +79,7 @@
 
 #include "access/xact.h"
 #include "catalog/pg_authid.h"
+#include "catalog/pg_proc.h"
 #include "miscadmin.h"
 #include "tcop/utility.h"
 #include "utils/builtins.h"
@@ -90,6 +91,7 @@ PG_MODULE_MAGIC;
 
 static char *save_log_statement = NULL;
 static Oid save_OldUserId = InvalidOid;
+static char *reset_token = NULL;
 static ProcessUtility_hook_type prev_hook = NULL;
 
 #ifdef HAS_ALTER_SYSTEM
@@ -145,6 +147,8 @@ set_user(PG_FUNCTION_ARGS)
 	char		   *su = "Superuser ";
 	char		   *nsu = "";
 	MemoryContext	oldcontext;
+	bool			is_reset = false;
+	bool			is_token = false;
 
 	/*
 	 * Disallow SET ROLE inside a transaction block. The
@@ -157,12 +161,57 @@ set_user(PG_FUNCTION_ARGS)
 						errmsg("set_user: SET ROLE not allowed within transaction block"),
 						errhint("Use SET ROLE outside transaction block instead.")));
 
+	/*
+	 * set_user(non_null_arg text)
+	 *
+	 * Might be set_user(username) but might also be set_user(reset_token).
+	 * The former case we need to switch user normally, the latter is a
+	 * reset with token provided. We need to determine which one we have.
+	 */
 	if (nargs == 1 && !argisnull)
 	{
+		Oid				funcOid = fcinfo->flinfo->fn_oid;
+		HeapTuple		procTup;
+		Form_pg_proc	procStruct;
+		char		   *funcname;
+
+		/* Lookup the pg_proc tuple by Oid */
+		procTup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcOid));
+		if (!HeapTupleIsValid(procTup))
+			elog(ERROR, "cache lookup failed for function %u", funcOid);
+		procStruct = (Form_pg_proc) GETSTRUCT(procTup);
+		funcname = pstrdup(NameStr(procStruct->proname));
+		ReleaseSysCache(procTup);
+
+		if (strcmp(funcname, "reset_user") == 0)
+		{
+			is_reset = true;
+			is_token = true;
+		}
+	}
+	/*
+	 * set_user() or set_user(NULL) ==> always a reset
+	 */
+	else if (nargs == 0 || (nargs == 1 && argisnull))
+		is_reset = true;
+
+	if ((nargs == 1 && !is_reset) || nargs == 2)
+	{
+		/* we are setting a new user */
 		if (save_OldUserId != InvalidOid)
 			elog(ERROR, "must reset previous user prior to setting again");
 
 		newuser = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+		/* with 2 args, the caller wants to specify a reset token */
+		if (nargs == 2)
+		{
+			/* use session lifetime memory */
+			oldcontext = MemoryContextSwitchTo(TopMemoryContext);
+			/* capture the reset token */
+			reset_token = text_to_cstring(PG_GETARG_TEXT_PP(1));
+			MemoryContextSwitchTo(oldcontext);
+		}
 
 		/* Look up the username */
 		roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(newuser));
@@ -185,14 +234,32 @@ set_user(PG_FUNCTION_ARGS)
 													 false, false));
 		MemoryContextSwitchTo(oldcontext);
 
-		/* force logging of everything, at least initially */
-		SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
+		/* force logging of everything if block_log_statement is true */
+		if (Block_LS)
+			SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
 	}
-	else if (nargs == 0 || (nargs == 1 && argisnull))
+	else if (is_reset)
 	{
+		char	   *user_supplied_token = NULL;
+
 		/* set_user not active, nothing to do */
 		if (save_OldUserId == InvalidOid)
 			PG_RETURN_TEXT_P(cstring_to_text("OK"));
+
+		if (reset_token && !is_token)
+			ereport(ERROR,
+					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+					 errmsg("reset token required but not provided")));
+		else if (reset_token && is_token)
+			user_supplied_token = text_to_cstring(PG_GETARG_TEXT_PP(0));
+
+		if (reset_token)
+		{
+			if (strcmp(reset_token, user_supplied_token) != 0)
+				ereport(ERROR,
+						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+						errmsg("incorrect reset token provided")));
+		}
 
 		/* get original userid to whom we will reset */
 		NewUserId = save_OldUserId;
@@ -202,11 +269,18 @@ set_user(PG_FUNCTION_ARGS)
 		/* flag that we are now reset */
 		save_OldUserId = InvalidOid;
 
-		/* restore original log_statement setting */
-		SetConfigOption("log_statement", save_log_statement, PGC_SUSET, PGC_S_SESSION);
+		/* restore original log_statement setting if block_log_statement is true */
+		if (Block_LS)
+			SetConfigOption("log_statement", save_log_statement, PGC_SUSET, PGC_S_SESSION);
 
 		pfree(save_log_statement);
 		save_log_statement = NULL;
+
+		if (reset_token)
+		{
+			pfree(reset_token);
+			reset_token = NULL;
+		}
 	}
 	else
 		/* should not happen */
