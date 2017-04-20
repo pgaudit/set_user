@@ -61,6 +61,14 @@
 #define HAS_TWO_ARG_GETUSERNAMEFROMID
 #define HAS_PROCESSUTILITYCONTEXT
 
+#elif PG_VERSION_NUM < 100000
+/* 9.6 */
+#define HAS_HTUP_DETAILS
+#define HAS_ALTER_SYSTEM
+#define HAS_COPY_PROGRAM
+#define HAS_TWO_ARG_GETUSERNAMEFROMID
+#define HAS_PROCESSUTILITYCONTEXT
+
 #else
 /* master */
 #define HAS_HTUP_DETAILS
@@ -68,6 +76,7 @@
 #define HAS_COPY_PROGRAM
 #define HAS_TWO_ARG_GETUSERNAMEFROMID
 #define HAS_PROCESSUTILITYCONTEXT
+#define HAS_PSTMT
 
 #endif
 
@@ -108,15 +117,23 @@ static bool Block_LS = false;
 static bool Block_SU = false;
 
 #ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
-/* 9.5 & master */
+/* 9.5 - master */
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
 #else
 /* 9.1 - 9.4 */
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
 #endif
 
+#ifdef HAS_PSTMT
+/* 10 & up */
+static void PU_hook(PlannedStmt *pstmt, const char *queryString,
+					ProcessUtilityContext context, ParamListInfo params,
+					QueryEnvironment *queryEnv,
+					DestReceiver *dest, char *completionTag);
+#else
+/* < 10 */
 #ifdef HAS_PROCESSUTILITYCONTEXT
-/* 9.3 & up */
+/* 9.3 - 9.6 */
 static void PU_hook(Node *parsetree, const char *queryString,
 					ProcessUtilityContext context, ParamListInfo params,
 					DestReceiver *dest, char *completionTag);
@@ -125,6 +142,7 @@ static void PU_hook(Node *parsetree, const char *queryString,
 static void PU_hook(Node *parsetree, const char *queryString,
 					ParamListInfo params, bool isTopLevel,
 					DestReceiver *dest, char *completionTag);
+#endif
 #endif
 
 extern Datum set_user(PG_FUNCTION_ARGS);
@@ -337,8 +355,16 @@ _PG_fini(void)
 	ProcessUtility_hook = prev_hook;
 }
 
+#ifdef HAS_PSTMT
+/* 10 & up */
+static void PU_hook(PlannedStmt *pstmt, const char *queryString,
+					ProcessUtilityContext context, ParamListInfo params,
+					QueryEnvironment *queryEnv,
+					DestReceiver *dest, char *completionTag)
+#else
+/* < 10 */
 #ifdef HAS_PROCESSUTILITYCONTEXT
-/* 9.3 & up */
+/* 9.3 - 9.6 */
 static void
 PU_hook(Node *parsetree, const char *queryString,
 		ProcessUtilityContext context, ParamListInfo params,
@@ -350,7 +376,12 @@ PU_hook(Node *parsetree, const char *queryString,
 		ParamListInfo params, bool isTopLevel,
 		DestReceiver *dest, char *completionTag)
 #endif
+#endif
 {
+
+#ifdef HAS_PSTMT
+	Node	   *parsetree = pstmt->utilityStmt;
+#endif
 	/* if set_user has been used to transition, enforce set_user GUCs */
 	if (save_OldUserId != InvalidOid)
 	{
@@ -393,6 +424,17 @@ PU_hook(Node *parsetree, const char *queryString,
 	 * Now pass-off handling either to the previous ProcessUtility hook
 	 * or to the standard ProcessUtility.
 	 */
+#ifdef HAS_PSTMT
+/* 10 & up */
+	if (prev_hook)
+		prev_hook(pstmt, queryString, context, params,
+				  queryEnv, dest, completionTag);
+	else
+		standard_ProcessUtility(pstmt, queryString,
+								context, params, queryEnv,
+								dest, completionTag);
+#else
+/* < 10 */
 #ifdef HAS_PROCESSUTILITYCONTEXT
 /* 9.3 & up */
 	if (prev_hook)
@@ -411,5 +453,6 @@ PU_hook(Node *parsetree, const char *queryString,
 		standard_ProcessUtility(parsetree, queryString,
 								params, isTopLevel,
 								dest, completionTag);
+#endif
 #endif
 }
