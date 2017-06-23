@@ -14,6 +14,7 @@ CREATE ROLE newbs;
 CREATE ROLE su NOINHERIT;
 -- dba is the role we want to allow to execute set_user()
 GRANT EXECUTE ON FUNCTION set_user(text) TO dba;
+GRANT EXECUTE ON FUNCTION set_user_u(text) TO dba;
 GRANT newbs TO bob;
 -- joe will be able to escalate without set_user() via su
 GRANT su TO joe;
@@ -27,8 +28,24 @@ SELECT SESSION_USER, CURRENT_USER;
 (1 row)
 
 SELECT set_user('postgres');
- set_user 
-----------
+ERROR:  Switching to superuser only allowed for privileged procedure: 'set_user_u'
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
+-- test set_user_u
+SET SESSION AUTHORIZATION dba;
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
+SELECT set_user_u('postgres');
+ set_user_u 
+------------
  OK
 (1 row)
 
@@ -77,9 +94,9 @@ COPY (select 42) TO PROGRAM 'cat';
 SET log_statement = DEFAULT;
 -- this is an example of how we might audit existing roles
 SET SESSION AUTHORIZATION dba;
-SELECT set_user('postgres');
- set_user 
-----------
+SELECT set_user_u('postgres');
+ set_user_u 
+------------
  OK
 (1 row)
 
