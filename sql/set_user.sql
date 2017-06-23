@@ -18,6 +18,7 @@ CREATE ROLE su NOINHERIT;
 
 -- dba is the role we want to allow to execute set_user()
 GRANT EXECUTE ON FUNCTION set_user(text) TO dba;
+GRANT EXECUTE ON FUNCTION set_user_u(text) TO dba;
 GRANT newbs TO bob;
 -- joe will be able to escalate without set_user() via su
 GRANT su TO joe;
@@ -27,6 +28,12 @@ GRANT postgres TO su;
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
 SELECT set_user('postgres');
+SELECT SESSION_USER, CURRENT_USER;
+
+-- test set_user_u
+SET SESSION AUTHORIZATION dba;
+SELECT SESSION_USER, CURRENT_USER;
+SELECT set_user_u('postgres');
 SELECT SESSION_USER, CURRENT_USER;
 
 -- ALTER SYSTEM should fail
@@ -52,7 +59,7 @@ SET log_statement = DEFAULT;
 
 -- this is an example of how we might audit existing roles
 SET SESSION AUTHORIZATION dba;
-SELECT set_user('postgres');
+SELECT set_user_u('postgres');
 SELECT rolname FROM pg_authid WHERE rolsuper and rolcanlogin;
 CREATE OR REPLACE VIEW roletree AS
 WITH RECURSIVE

@@ -1,7 +1,7 @@
 MODULES = set_user
 
 EXTENSION = set_user
-DATA = set_user--1.0.sql
+DATA = set_user--1.1.sql set_user--1.0--1.1.sql
 PGFILEDESC = "set_user - similar to SET ROLE but with added logging"
 
 REGRESS = set_user

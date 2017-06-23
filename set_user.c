@@ -95,6 +95,9 @@
 #include "utils/guc.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
+#include "utils/varlena.h"
+
+#define WHITELIST_WILDCARD	"*"
 
 PG_MODULE_MAGIC;
 
@@ -114,7 +117,7 @@ static bool Block_CP = false;
 #endif
 
 static bool Block_LS = false;
-static bool Block_SU = false;
+static char *SU_Whitelist = NULL;
 
 #ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
 /* 9.5 - master */
@@ -149,6 +152,47 @@ extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
 void _PG_fini(void);
 
+/*
+ * check_user_whitelist
+ *
+ * Check if user is contained by whitelist
+ *
+ */
+static bool
+check_user_whitelist(Oid userId, const char *whitelist)
+{
+	char	   *rawstring = NULL;
+	List	   *elemlist;
+	ListCell   *l;
+
+	if (whitelist == NULL || whitelist[0] == '\0')
+		return false;
+
+	rawstring = pstrdup(whitelist);
+
+	/* Parse string into list of identifiers */
+	if (!SplitIdentifierString(rawstring, ',', &elemlist))
+	{
+		/* syntax error in list */
+		ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("Invalid syntax in parameter")));
+	}
+
+	/* See if the whitelist contains the current username or wildcard. */
+	foreach(l, elemlist)
+	{
+		char	   *elem = (char *) lfirst(l);
+
+		if (pg_strcasecmp(elem, WHITELIST_WILDCARD) == 0)
+			return true;
+		else if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 PG_FUNCTION_INFO_V1(set_user);
 Datum
 set_user(PG_FUNCTION_ARGS)
@@ -167,6 +211,7 @@ set_user(PG_FUNCTION_ARGS)
 	MemoryContext	oldcontext;
 	bool			is_reset = false;
 	bool			is_token = false;
+	bool			is_privileged = false;
 
 	/*
 	 * Disallow SET ROLE inside a transaction block. The
@@ -206,6 +251,9 @@ set_user(PG_FUNCTION_ARGS)
 			is_reset = true;
 			is_token = true;
 		}
+
+		if (strcmp(funcname, "set_user_u") == 0)
+			is_privileged = true;
 	}
 	/*
 	 * set_user() or set_user(NULL) ==> always a reset
@@ -240,10 +288,19 @@ set_user(PG_FUNCTION_ARGS)
 		NewUser_is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 		ReleaseSysCache(roleTup);
 
-		if (NewUser_is_superuser && Block_SU)
-			ereport(ERROR,
-					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-					 errmsg("Switching to superuser blocked by set_user config")));
+		if (NewUser_is_superuser)
+		{
+			if (!is_privileged)
+				/* can only escalate with set_user_u */
+				ereport(ERROR,
+						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+						 errmsg("Switching to superuser only allowed for privileged procedure: \'set_user_u\'")));
+			else if (!check_user_whitelist(GetUserId(), SU_Whitelist))
+				/* check superuser whitelist*/
+				ereport(ERROR,
+						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+						 errmsg("Switching to superuser not allowed for current user")));
+		}
 
 		/* keep track of original userid and value of log_statement */
 		save_OldUserId = OldUserId;
@@ -339,11 +396,10 @@ _PG_init(void)
 							 NULL, &Block_LS, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
-	DefineCustomBoolVariable("set_user.block_superuser",
-							 "Blocks switching to superuser",
-							 NULL, &Block_SU, false, PGC_SIGHUP,
+	DefineCustomStringVariable("set_user.superuser_whitelist",
+							 "Allows a list of users to use set_user_u for superuser escalation",
+							 NULL, &SU_Whitelist, WHITELIST_WILDCARD, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
-
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
 	ProcessUtility_hook = PU_hook;

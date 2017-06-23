@@ -5,6 +5,7 @@
 ```
 set_user(text rolename) returns text
 set_user(text rolename, text token) returns text
+set_user_u(text rolename) returns text
 reset_user() returns text
 reset_user(text token) returns text
 ```
@@ -21,7 +22,7 @@ reset_user(text token) returns text
   * set_user.block_alter_system = off (defaults to "on")
   * set_user.block_copy_program = off (defaults to "on")
   * set_user.block_log_statement = off (defaults to "on")
-  * set_user.block_superuser = on (defaults to "off")
+  * set_user.superuser_whitelist = '```<user1>```,```<user2>```,...,```<userN>```' (defaults to '*')
 
 ## Description
 
@@ -34,11 +35,18 @@ Specifically, when an allowed user executes
 
 * The current effective user becomes ```rolename```.
 * The role transition is logged, with specific notation if ```rolename``` is a superuser.
-* log_statement setting is set to "all", meaning every SQL statement executed while in this state will also get logged.
+* log_statement setting is set to "all", meaning every SQL statement executed
+  while in this state will also get logged.
 * If set_user.block_alter_system is set to "on", ```ALTER SYSTEM``` commands will be blocked.
 * If set_user.block_copy_program is set to "on", ```COPY PROGRAM``` commands will be blocked.
-* If set_user.block_log_statement is set to "on", ```SET log_statement``` and variations will be blocked.
-* If set_user.block_superuser is set to "on", transition to a superuser role will be blocked.
+* If set_user.block_log_statement is set to "on", ```SET log_statement``` and
+  variations will be blocked.
+
+Only users with access to ```set_user_u('rolename')``` may escalate to superuser:
+* Only users explicitly listed in set_user.superuser_whitelist will be able to
+  escalate to superuser. If set_user.superuser_whitelist is empty, superuser
+  escalation is blocked for all users. If the wildcard character, '*' (default),
+  is in the whitelist, all users will be permitted to escalate to superuser.
 
 Additionally, with ```set_user('rolename','token')```:
 * The ```token``` is stored in session lifetime memory.
@@ -55,14 +63,15 @@ If ```set_user```, was provided with a ```token```, then ```reset_user('token')`
 * If the tokens do not match, or if a ```token``` was provided to ```set_user``` but not ```reset_user```, an ERROR occurs.
 
 The concept is to grant the EXECUTE privilege to the ```set_user()```
-function to otherwise unprivileged postgres users who can then
-transition to other roles, possibly escalating themselves to superuser,
-when needed to perform specific actions. The enhanced logging ensures
-an audit trail of what actions are taken while privileges are altered
-to those of the alternate role. Note that if set_user.block_superuser
-is turned on, superuser escalation will be blocked by ```set_user()```.
+function to otherwise unprivileged postgres users. These users can then
+transition to other roles, possibly escalating themselves to superuser through
+use of ```set_user_u()```, when needed to perform specific actions. The enhanced
+logging ensures an audit trail of what actions are taken while privileges are
+altered to those of the alternate role. Note that superuser escalation is only
+allowed for the roles listed in set_user.superuser_whitelist, or all roles, if
+the wildcard character is in the list.
 
-Once one or more unprivileged users are able to run ```set_user()```
+Once one or more unprivileged users are able to run ```set_user_u()```
 in order to escalate their privileges, the superuser account
 (normally ```postgres```) can be altered to NOLOGIN, preventing any
 direct database connection by a superuser which would bypass the
@@ -83,8 +92,8 @@ For the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM```
 to work properly, you must include ```set_user``` in shared_preload_libraries
 in postgresql.conf and restart PostgreSQL.
 
-```set_user('rolename')``` may not be executed from within
-an explicit transaction block.
+Neither```set_user('rolename')``` nor ```set_user_u('rolename')``` may be
+executed from within an explicit transaction block.
 
 ## Caveats
 
@@ -211,7 +220,7 @@ shared_preload_libraries = 'set_user'
 set_user.block_alter_system = off       #defaults to "on"
 set_user.block_copy_program = off       #defaults to "on"
 set_user.block_log_statement = off      #defaults to "on"
-set_user.block_superuser = on           #defaults to "off"
+set_user.superuser_whitelist = ''       #defaults to '*'
 ```
 
 Finally, restart PostgreSQL (method may vary):
@@ -236,8 +245,8 @@ CREATE EXTENSION set_user;
   * set_user.block_copy_program = on
 * Block SET log_statement commands
   * set_user.block_log_statement = on
-* Block switching to a superuser role
-  * set_user.block_superuser = on
+* Allow list of users to escalate to superuser
+  * set_user.superuser_whitelist = '```<user1>```,```<user2>```,...,```<userN>```'
 
 
 ## Examples
@@ -260,6 +269,7 @@ SELECT rolname FROM pg_authid WHERE rolsuper and rolcanlogin;
 CREATE EXTENSION set_user;
 CREATE USER dba_user;
 GRANT EXECUTE ON FUNCTION set_user(text) TO dba_user;
+GRANT EXECUTE ON FUNCTION set_user_u(text) TO dba_user;
 
 #################################
 # OS command line, terminal 2
@@ -270,6 +280,9 @@ psql -U dba_user <dbname>
 -- psql command line, terminal 2
 ---------------------------------
 SELECT set_user('postgres');
+ERROR:  Switching to superuser only allowed for privileged procedure:
+'set_user_u'
+SELECT set_user_u('postgres');
 SELECT CURRENT_USER, SESSION_USER;
  current_user | session_user
 --------------+--------------
@@ -297,7 +310,7 @@ ALTER USER postgres NOLOGIN;
 #################################
 tail -n 6 <postgres log>
 LOG:  Role dba_user transitioning to Superuser Role postgres
-STATEMENT:  SELECT set_user('postgres');
+STATEMENT:  SELECT set_user_u('postgres');
 LOG:  statement: SELECT CURRENT_USER, SESSION_USER;
 LOG:  statement: SELECT reset_user();
 LOG:  Superuser Role postgres transitioning to Role dba_user
