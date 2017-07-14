@@ -77,6 +77,7 @@
 #define HAS_TWO_ARG_GETUSERNAMEFROMID
 #define HAS_PROCESSUTILITYCONTEXT
 #define HAS_PSTMT
+#define HAS_VARLENA_H
 
 #endif
 
@@ -95,7 +96,9 @@
 #include "utils/guc.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
+#ifdef HAS_VARLENA_H
 #include "utils/varlena.h"
+#endif /* HAS_VARLENA_H */
 
 #define WHITELIST_WILDCARD	"*"
 
