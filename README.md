@@ -26,12 +26,8 @@ reset_user(text token) returns text
 
 ## Description
 
-This PostgreSQL extension allows switching users and optionally privilege
-escalation with enhanced logging and control. It provides an additional layer
-of logging and control when unprivileged users must escalate themselves to
-superuser or object owner roles in order to perform needed maintenance tasks.
-Specifically, when an allowed user executes
-```set_user('rolename')```, several actions occur:
+This PostgreSQL extension allows switching users and optionally privilege escalation with enhanced logging and control. It provides an additional layer of logging and control when unprivileged users must escalate themselves to
+superuser or object owner roles in order to perform needed maintenance tasks. Specifically, when an allowed user executes ```set_user('rolename')``` or ```set_user_u('rolename')```, several actions occur:
 
 * The current effective user becomes ```rolename```.
 * The role transition is logged, with specific notation if ```rolename``` is a superuser.
@@ -42,17 +38,11 @@ Specifically, when an allowed user executes
 * If set_user.block_log_statement is set to "on", ```SET log_statement``` and
   variations will be blocked.
 
-Only users with access to ```set_user_u('rolename')``` may escalate to superuser:
-* Only users explicitly listed in set_user.superuser_whitelist will be able to
-  escalate to superuser. If set_user.superuser_whitelist is empty, superuser
-  escalation is blocked for all users. If the wildcard character, '*' (default),
-  is in the whitelist, all users will be permitted to escalate to superuser.
+Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only users explicitly listed in set_user.superuser_whitelist will be able to escalate to superuser. If  set_user.superuser_whitelist is empty, superuser escalation is blocked for all users. If the wildcard character, '*' (default), is in the whitelist, all users with EXECUTE permission on ```set_user_u()``` will be permitted to escalate to superuser.
 
-Additionally, with ```set_user('rolename','token')```:
-* The ```token``` is stored in session lifetime memory.
+Additionally, with ```set_user('rolename','token')``` the ```token``` is stored in session lifetime memory.
 
-When finished with required actions as ```rolename```, the ```reset_user()``` function
-is executed to restore the original user. At that point, these actions occur:
+When finished with required actions as ```rolename```, the ```reset_user()``` function is executed to restore the original user. At that point, these actions occur:
 
 * Role transition is logged.
 * log_statement setting is set to its original value.
@@ -62,50 +52,25 @@ If ```set_user```, was provided with a ```token```, then ```reset_user('token')`
 * The provided ```token``` is compared with the stored token.
 * If the tokens do not match, or if a ```token``` was provided to ```set_user``` but not ```reset_user```, an ERROR occurs.
 
-The concept is to grant the EXECUTE privilege to the ```set_user()```
-function to otherwise unprivileged postgres users. These users can then
-transition to other roles, possibly escalating themselves to superuser through
-use of ```set_user_u()```, when needed to perform specific actions. The enhanced
-logging ensures an audit trail of what actions are taken while privileges are
-altered to those of the alternate role. Note that superuser escalation is only
-allowed for the roles listed in set_user.superuser_whitelist, or all roles, if
-the wildcard character is in the list.
+The concept is to grant the EXECUTE privilege to the ```set_user()``` and/or ```set_user_u()``` function to otherwise unprivileged postgres users. These users can then transition to other roles, possibly escalating themselves to superuser through use of ```set_user_u()```, when needed to perform specific actions. The optional enhanced logging ensures an audit trail of what actions are taken while privileges are altered to those of the alternate role. Note that superuser escalation is only allowed for the roles listed in set_user.superuser_whitelist, or all roles, if the wildcard character is in the list.
 
-Once one or more unprivileged users are able to run ```set_user_u()```
-in order to escalate their privileges, the superuser account
-(normally ```postgres```) can be altered to NOLOGIN, preventing any
-direct database connection by a superuser which would bypass the
-enhanced logging.
+Once one or more unprivileged users are able to run ```set_user_u()``` in order to escalate their privileges, the superuser account (normally ```postgres```) can be altered to NOLOGIN, preventing any direct database connection by a superuser which would bypass the enhanced logging.
 
-Naturally for this to work as expected, the PostgreSQL cluster must
-be audited to ensure there are no other PostgreSQL roles existing which
-are both superuser and can log in. Additionally there must be no
-unprivileged PostgreSQL roles which have been granted access to one of
-the existing superuser roles.
+Naturally for this to work as expected, the PostgreSQL cluster must be audited to ensure there are no other PostgreSQL roles existing which are both superuser and can log in. Additionally there must be no unprivileged PostgreSQL roles which have been granted access to one of the existing superuser roles.
 
 Notes:
 
-If set_user.block_log_statement is set to "off", the log_statement setting
-is left unchanged.
+If set_user.block_log_statement is set to "off", the log_statement setting is left unchanged.
 
-For the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM```
-to work properly, you must include ```set_user``` in shared_preload_libraries
-in postgresql.conf and restart PostgreSQL.
+For the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM``` to work properly, you must include ```set_user``` in shared_preload_libraries in postgresql.conf and restart PostgreSQL.
 
-Neither```set_user('rolename')``` nor ```set_user_u('rolename')``` may be
-executed from within an explicit transaction block.
+Neither```set_user('rolename')``` nor ```set_user_u('rolename')``` may be executed from within an explicit transaction block.
 
 ## Caveats
 
-In its current state, this extension cannot prevent ```rolename``` from
-performing a variety of nefarious or otherwise undesireable actions.
-However, these actions will be logged providing an audit trail, which
-could also be used to trigger alerts.
+In its current state, this extension cannot prevent ```rolename``` from performing a variety of nefarious or otherwise undesireable actions. However, these actions will be logged providing an audit trail, which could also be used to trigger alerts.
 
-Although this extension compiles and works with all supported versions
-of PostgreSQL starting with PostgreSQL 9.1, all features are not supported
-until PostgreSQL 9.4 or higher. The ALTER SYSTEM command does not
-exist prior to 9.4 and COPY PROGRAM does not exist prior to 9.3.
+Although this extension compiles and works with all supported versions of PostgreSQL starting with PostgreSQL 9.1, all features are not supported until PostgreSQL 9.4 or higher. The ALTER SYSTEM command does not exist prior to 9.4 and COPY PROGRAM does not exist prior to 9.3.
 
 ## TODO
 
@@ -172,10 +137,7 @@ $> make install
 
 #### Using PGXS
 
-If an instance of PostgreSQL is already installed, then PGXS can be utilized
-to build and install ```set_user```.  Ensure that PostgreSQL
-binaries are available via the ```$PATH``` environment variable then use the
-following commands.
+If an instance of PostgreSQL is already installed, then PGXS can be utilized to build and install ```set_user```.  Ensure that PostgreSQL binaries are available via the ```$PATH``` environment variable then use the following commands.
 
 ```bash
 $> make USE_PGXS=1
@@ -184,9 +146,7 @@ $> make USE_PGXS=1 install
 
 ### Configure
 
-The following bash commands should configure your system to utilize
-set_user. Replace all paths as appropriate. It may be prudent to
-visually inspect the files afterward to ensure the changes took place.
+The following bash commands should configure your system to utilize set_user. Replace all paths as appropriate. It may be prudent to visually inspect the files afterward to ensure the changes took place.
 
 ###### Initialize PostgreSQL (if needed):
 
@@ -202,8 +162,7 @@ $> createdb <database>
 
 ###### Install ```set_user``` functions:
 
-Edit postgresql.conf and add ```set_user``` to the shared_preload_libraries
-line, optionally also changing custom settings as mentioned above.
+Edit postgresql.conf and add ```set_user``` to the shared_preload_libraries line, optionally also changing custom settings as mentioned above.
 
 First edit postgresql.conf in your favorite editor:
 
@@ -246,7 +205,7 @@ CREATE EXTENSION set_user;
 * Block SET log_statement commands
   * set_user.block_log_statement = on
 * Allow list of users to escalate to superuser
-  * set_user.superuser_whitelist = '```<user1>```,```<user2>```,...,```<userN>```'
+  * set_user.superuser_whitelist = '```<user1>,<user2>,...,<userN>```'
 
 
 ## Examples
