@@ -312,8 +312,13 @@ set_user(PG_FUNCTION_ARGS)
 													 false, false));
 		MemoryContextSwitchTo(oldcontext);
 
-		/* force logging of everything if block_log_statement is true */
-		if (Block_LS)
+		/*
+		 * Force logging of everything if block_log_statement is true
+		 * and we are escalating to superuser. If not escalating to superuser
+		 * the caller could always set log_statement to all prior to using
+		 * set_user, and ensure Block_LS is true.
+		 */
+		if (NewUser_is_superuser && Block_LS)
 			SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
 	}
 	else if (is_reset)

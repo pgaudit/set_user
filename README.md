@@ -26,17 +26,16 @@ reset_user(text token) returns text
 
 ## Description
 
-This PostgreSQL extension allows switching users and optionally privilege escalation with enhanced logging and control. It provides an additional layer of logging and control when unprivileged users must escalate themselves to
-superuser or object owner roles in order to perform needed maintenance tasks. Specifically, when an allowed user executes ```set_user('rolename')``` or ```set_user_u('rolename')```, several actions occur:
+This PostgreSQL extension allows switching users and optionally privilege escalation with enhanced logging and control. It provides an additional layer of logging and control when unprivileged users must escalate themselves to superuser or object owner roles in order to perform needed maintenance tasks. Specifically, when an allowed user executes ```set_user('rolename')``` or ```set_user_u('rolename')```, several actions occur:
 
 * The current effective user becomes ```rolename```.
 * The role transition is logged, with specific notation if ```rolename``` is a superuser.
-* log_statement setting is set to "all", meaning every SQL statement executed
   while in this state will also get logged.
 * If set_user.block_alter_system is set to "on", ```ALTER SYSTEM``` commands will be blocked.
 * If set_user.block_copy_program is set to "on", ```COPY PROGRAM``` commands will be blocked.
 * If set_user.block_log_statement is set to "on", ```SET log_statement``` and
   variations will be blocked.
+* If set_user.block_log_statement is set to "on" and ```rolename``` is a database superuser, the current log_statement setting is changed to "all", meaning every SQL statement executed
 
 Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only users explicitly listed in set_user.superuser_whitelist will be able to escalate to superuser. If  set_user.superuser_whitelist is empty, superuser escalation is blocked for all users. If the wildcard character, '*' (default), is in the whitelist, all users with EXECUTE permission on ```set_user_u()``` will be permitted to escalate to superuser.
 
