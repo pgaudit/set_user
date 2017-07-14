@@ -167,6 +167,7 @@ check_user_whitelist(Oid userId, const char *whitelist)
 	char	   *rawstring = NULL;
 	List	   *elemlist;
 	ListCell   *l;
+	bool		result = false;
 
 	if (whitelist == NULL || whitelist[0] == '\0')
 		return false;
@@ -182,18 +183,38 @@ check_user_whitelist(Oid userId, const char *whitelist)
 				 errmsg("Invalid syntax in parameter")));
 	}
 
-	/* See if the whitelist contains the current username or wildcard. */
+	/* Allow all users to escalate if whitelist is a solo wildcard character. */
+	if (list_length(elemlist) == 1)
+	{
+		char	   *first_elem = NULL;
+
+		first_elem = (char *) linitial(elemlist);
+		if (pg_strcasecmp(first_elem, WHITELIST_WILDCARD) == 0)
+			return true;
+	}
+
+	/*
+	 * Check whole whitelist to see if it contains the current username and no
+	 * wildcard character. Throw an error if the whitelist contains both.
+	 */
 	foreach(l, elemlist)
 	{
 		char	   *elem = (char *) lfirst(l);
 
-		if (pg_strcasecmp(elem, WHITELIST_WILDCARD) == 0)
-			return true;
-		else if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
-			return true;
+		if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
+			result = true;
+		else if (pg_strcasecmp(elem, WHITELIST_WILDCARD) == 0)
+				/* No explicit usernames intermingled with wildcard. */
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("invalid syntax in parameter"),
+						 errhint("Either remove users from set_user.superuser_whitelist "
+								 "or remove the wildcard character \"%s\". The whitelist "
+								 "cannot contain both.",
+								 WHITELIST_WILDCARD)));
 	}
 
-	return false;
+	return result;
 }
 
 PG_FUNCTION_INFO_V1(set_user);

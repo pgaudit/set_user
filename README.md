@@ -37,7 +37,7 @@ This PostgreSQL extension allows switching users and optionally privilege escala
   variations will be blocked.
 * If set_user.block_log_statement is set to "on" and ```rolename``` is a database superuser, the current log_statement setting is changed to "all", meaning every SQL statement executed
 
-Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only users explicitly listed in set_user.superuser_whitelist will be able to escalate to superuser. If  set_user.superuser_whitelist is empty, superuser escalation is blocked for all users. If the wildcard character, '*' (default), is in the whitelist, all users with EXECUTE permission on ```set_user_u()``` will be permitted to escalate to superuser.
+Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only users explicitly listed in set_user.superuser_whitelist can escalate to superuser. If set_user.superuser_whitelist is explicitly set to the empty set, '', superuser escalation is blocked for all users. If the whitelist is equal to the wildcard character, '*', all users with EXECUTE permission on ```set_user_u()``` can escalate to superuser. The default value of set_user.superuser_whitelist is '*'.
 
 Additionally, with ```set_user('rolename','token')``` the ```token``` is stored in session lifetime memory.
 
@@ -51,7 +51,7 @@ If ```set_user```, was provided with a ```token```, then ```reset_user('token')`
 * The provided ```token``` is compared with the stored token.
 * If the tokens do not match, or if a ```token``` was provided to ```set_user``` but not ```reset_user```, an ERROR occurs.
 
-The concept is to grant the EXECUTE privilege to the ```set_user()``` and/or ```set_user_u()``` function to otherwise unprivileged postgres users. These users can then transition to other roles, possibly escalating themselves to superuser through use of ```set_user_u()```, when needed to perform specific actions. The optional enhanced logging ensures an audit trail of what actions are taken while privileges are altered to those of the alternate role. Note that superuser escalation is only allowed for the roles listed in set_user.superuser_whitelist, or all roles, if the wildcard character is in the list.
+The concept is to grant the EXECUTE privilege to the ```set_user()``` and/or ```set_user_u()``` function to otherwise unprivileged postgres users. These users can then transition to other roles, possibly escalating themselves to superuser through use of ```set_user_u()```, when needed to perform specific actions. The optional enhanced logging ensures an audit trail of what actions are taken while privileges are altered to those of the alternate role. Note that superuser escalation is only allowed for the roles listed in set_user.superuser_whitelist. If the whitelist is equal to '*', all roles with GRANT EXECUTE ON ```set_user_u``` can escalate to superuser. This is the default setting of set_user.superuser_whitelist.
 
 Once one or more unprivileged users are able to run ```set_user_u()``` in order to escalate their privileges, the superuser account (normally ```postgres```) can be altered to NOLOGIN, preventing any direct database connection by a superuser which would bypass the enhanced logging.
 
