@@ -319,7 +319,7 @@ set_user(PG_FUNCTION_ARGS)
 				ereport(ERROR,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 						 errmsg("switching to superuser not allowed"),
-						 errhint("Use \'set_user_u\' to escalate.")))
+						 errhint("Use \'set_user_u\' to escalate.")));
 			else if (!check_user_whitelist(GetUserId(), SU_Whitelist))
 				/* check superuser whitelist*/
 				ereport(ERROR,
