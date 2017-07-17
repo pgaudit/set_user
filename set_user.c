@@ -180,7 +180,7 @@ check_user_whitelist(Oid userId, const char *whitelist)
 		/* syntax error in list */
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("Invalid syntax in parameter")));
+				 errmsg("invalid syntax in parameter")));
 	}
 
 	/* Allow all users to escalate if whitelist is a solo wildcard character. */
@@ -318,12 +318,14 @@ set_user(PG_FUNCTION_ARGS)
 				/* can only escalate with set_user_u */
 				ereport(ERROR,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-						 errmsg("Switching to superuser only allowed for privileged procedure: \'set_user_u\'")));
+						 errmsg("switching to superuser not allowed"),
+						 errhint("Use \'set_user_u\' to escalate.")))
 			else if (!check_user_whitelist(GetUserId(), SU_Whitelist))
 				/* check superuser whitelist*/
 				ereport(ERROR,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-						 errmsg("Switching to superuser not allowed for current user")));
+						 errmsg("switching to superuser not allowed"),
+						 errhint("Add current user to set_user.superuser_whitelist.")));
 		}
 
 		/* keep track of original userid and value of log_statement */
