@@ -1,0 +1,29 @@
+# Note:  Vagrant Guest Additions is required
+# You may acquire it on your host system via: "sudo vagrant plugin install vagrant-vbguest"
+
+Vagrant.configure(2) do |config|
+    config.vm.box = "centos/7"
+
+    config.vm.provider :virtualbox do |vb|
+        vb.name = "set-user-centos7-test"
+    end
+
+    # Provision the VM
+    config.vm.provision "shell", inline: <<-SHELL
+        echo "Provisioning..."
+
+        # Setup environment
+        yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        yum -y install pandoc
+        yum -y install 'texlive-*'
+
+        # Generate docs
+        pandoc -s /set-user/README.md -o /set-user/README.pdf
+    SHELL
+
+  # Don't share the default vagrant folder
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  # Mount project path for testing
+  config.vm.synced_folder "..", "/set-user"
+end
