@@ -18,7 +18,9 @@ Vagrant.configure(2) do |config|
         yum -y install 'texlive-*'
 
         # Generate docs
-        pandoc -s /set-user/README.md -o /set-user/README.pdf
+        cd /set-user
+        version=$(grep "default_version" set_user.control  | awk '{print $3}' | sed "s/'//g")
+        pandoc -s README.md -o Set_User-UserGuide-$version.pdf
     SHELL
 
   # Don't share the default vagrant folder
