@@ -22,7 +22,11 @@ reset_user(text token) returns text
   * set_user.block_alter_system = off (defaults to "on")
   * set_user.block_copy_program = off (defaults to "on")
   * set_user.block_log_statement = off (defaults to "on")
-  * set_user.superuser_whitelist = '```<user1>```,```<user2>```,...,```<userN>```' (defaults to '*')
+  * set_user.superuser_whitelist = '```<role list>```
+    * ```<role list>``` can contain any of the following:
+      * list of user roles (i.e. ```<role1>, <role2>,...,<roleN>```)
+      * Group roles may be indicated by ```+<roleN>``'
+      * The wildcard character ```*```
 
 ## Description
 
@@ -37,7 +41,7 @@ This PostgreSQL extension allows switching users and optionally privilege escala
   variations will be blocked.
 * If set_user.block_log_statement is set to "on" and ```rolename``` is a database superuser, the current log_statement setting is changed to "all", meaning every SQL statement executed
 
-Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only users explicitly listed in set_user.superuser_whitelist can escalate to superuser. If set_user.superuser_whitelist is explicitly set to the empty set, '', superuser escalation is blocked for all users. If the whitelist is equal to the wildcard character, '*', all users with EXECUTE permission on ```set_user_u()``` can escalate to superuser. The default value of set_user.superuser_whitelist is '*'.
+Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only roles explicitly listed or included by a group that is explicitly listed (e.g. '+admin') in set_user.superuser_whitelist can escalate to superuser. If set_user.superuser_whitelist is explicitly set to the empty set, '', superuser escalation is blocked for all users. If the whitelist is equal to the wildcard character, '*', all users with EXECUTE permission on ```set_user_u()``` can escalate to superuser. The default value of set_user.superuser_whitelist is '*'.
 
 Additionally, with ```set_user('rolename','token')``` the ```token``` is stored in session lifetime memory.
 
@@ -203,8 +207,8 @@ CREATE EXTENSION set_user;
   * set_user.block_copy_program = on
 * Block SET log_statement commands
   * set_user.block_log_statement = on
-* Allow list of users to escalate to superuser
-  * set_user.superuser_whitelist = '```<user1>,<user2>,...,<userN>```'
+* Allow list of roles to escalate to superuser
+  * set_user.superuser_whitelist = '```<role1>,<role2>,...,<roleN>```'
 
 
 ## Examples

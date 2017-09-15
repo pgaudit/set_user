@@ -93,6 +93,7 @@
 #include "catalog/pg_proc.h"
 #include "miscadmin.h"
 #include "tcop/utility.h"
+#include "utils/acl.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
@@ -208,9 +209,21 @@ check_user_whitelist(Oid userId, const char *whitelist)
 	{
 		char	   *elem = (char *) lfirst(l);
 
-		if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
-			result = true;
-		else if (pg_strcasecmp(elem, WHITELIST_WILDCARD) == 0)
+		if (elem[0] == '+')
+		{
+			Oid roleId;
+			roleId = get_role_oid(elem + 1, false);
+			if (!OidIsValid(roleId))
+				result = false;
+
+			/* Check to see if userId is contained by group role in whitelist */
+			result = has_privs_of_role(userId, roleId);
+		}
+		else
+		{
+			if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
+				result = true;
+			else if(pg_strcasecmp(elem, WHITELIST_WILDCARD) == 0)
 				/* No explicit usernames intermingled with wildcard. */
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
@@ -219,8 +232,9 @@ check_user_whitelist(Oid userId, const char *whitelist)
 								 "or remove the wildcard character \"%s\". The whitelist "
 								 "cannot contain both.",
 								 WHITELIST_WILDCARD)));
+				result = true;
+		}
 	}
-
 	return result;
 }
 
