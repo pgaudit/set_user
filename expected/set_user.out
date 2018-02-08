@@ -28,7 +28,8 @@ SELECT SESSION_USER, CURRENT_USER;
 (1 row)
 
 SELECT set_user('postgres');
-ERROR:  Switching to superuser only allowed for privileged procedure: 'set_user_u'
+ERROR:  switching to superuser not allowed
+HINT:  Use 'set_user_u' to escalate.
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
