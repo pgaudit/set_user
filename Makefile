@@ -18,3 +18,15 @@ top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
 endif
+
+.PHONY: install-headers uninstall-headers
+
+install: install-headers
+
+install-headers:
+	$(INSTALL_DATA) "set_user.h" $(includedir)
+
+uninstall: uninstall-headers
+
+uninstall-headers:
+	rm "$(includedir)/set_user.h"

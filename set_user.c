@@ -31,6 +31,7 @@
 #include "postgres.h"
 
 #include "pg_config.h"
+
 #if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90100
 /* prior to 9.1 */
 #error "This extension only builds with PostgreSQL 9.1 or later"
@@ -100,6 +101,7 @@
 #include "utils/varlena.h"
 #endif /* HAS_VARLENA_H */
 
+#include "set_user.h"
 #define WHITELIST_WILDCARD	"*"
 
 PG_MODULE_MAGIC;
@@ -108,6 +110,9 @@ static char *save_log_statement = NULL;
 static Oid save_OldUserId = InvalidOid;
 static char *reset_token = NULL;
 static ProcessUtility_hook_type prev_hook = NULL;
+
+post_reset_user_hook_type post_reset_user_hook = NULL;
+post_set_user_hook_type post_set_user_hook = NULL;
 
 #ifdef HAS_ALTER_SYSTEM
 /* 9.4 & up */
@@ -150,6 +155,8 @@ static void PU_hook(Node *parsetree, const char *queryString,
 					DestReceiver *dest, char *completionTag);
 #endif
 #endif
+
+extern void PostSetUserHook(bool is_reset, const char *newuser);
 
 extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
@@ -399,6 +406,7 @@ set_user(PG_FUNCTION_ARGS)
 			  newuser);
 
 	SetCurrentRoleId(NewUserId, NewUser_is_superuser);
+	PostSetUserHook(is_reset, newuser);
 
 	PG_RETURN_TEXT_P(cstring_to_text("OK"));
 }
@@ -542,4 +550,19 @@ PU_hook(Node *parsetree, const char *queryString,
 								dest, completionTag);
 #endif
 #endif
+}
+
+/*
+ * PostSetUserHook
+ *
+ * Handler for the post_set_user_hook
+ */
+void
+PostSetUserHook(bool is_reset, const char *username)
+{
+	if (post_reset_user_hook && is_reset)
+		(*post_reset_user_hook) ();
+	else if (post_set_user_hook)
+		(*post_set_user_hook) (username);
+	return;
 }
