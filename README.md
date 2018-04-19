@@ -345,7 +345,7 @@ SELECT r.rolname, r.rolsuper, r.rolinherit,
 FROM pg_catalog.pg_roles r
 ORDER BY 1;
                                     List of roles
- Role name |                         Attributes                         | Member of  
+ Role name |                         Attributes                         | Member of
 -----------+------------------------------------------------------------+------------
  bob       |                                                            | {}
  dba_user  |                                                            | {su}
@@ -374,7 +374,7 @@ OR
       AND ri.rolsuper
     )
 );
- rolname  | roloid | rolcanlogin | rolsuper |  rolparents   
+ rolname  | roloid | rolcanlogin | rolsuper |  rolparents
 ----------+--------+-------------+----------+---------------
  dba_user |  16387 | t           | f        | {postgres,su}
  postgres |     10 | t           | t        | {}
@@ -402,7 +402,7 @@ OR
       AND ri.rolsuper
     )
 );
- rolname | roloid | rolcanlogin | rolsuper | rolparents 
+ rolname | roloid | rolcanlogin | rolsuper | rolparents
 ---------+--------+-------------+----------+------------
 (0 rows)
 ```
