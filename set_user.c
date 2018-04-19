@@ -8,7 +8,7 @@
  *
  * This code is released under the PostgreSQL license.
  *
- * Copyright 2015-2017 Crunchy Data Solutions, Inc.
+ * Copyright 2015-2018 Crunchy Data Solutions, Inc.
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
