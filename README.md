@@ -25,7 +25,7 @@ reset_user(text token) returns text
   * set_user.superuser_whitelist = '```<role list>```
     * ```<role list>``` can contain any of the following:
       * list of user roles (i.e. ```<role1>, <role2>,...,<roleN>```)
-      * Group roles may be indicated by ```+<roleN>``'
+      * Group roles may be indicated by ```+<roleN>```
       * The wildcard character ```*```
 
 ## Description
