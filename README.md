@@ -15,9 +15,9 @@ reset_user(text token) returns text
 ```rolename``` is the role to be transitioned to.
 ```token``` if provided during set_user is saved, and then required to be provided again for reset.
 
-## Requirements
+## Configuration Options
 
-* Add set_user to shared_preload_libraries in postgresql.conf.
+* Add ```set_user``` to shared_preload_libraries in postgresql.conf.
 * Optionally, the following custom parameters may be set to control their respective commands:
   * set_user.block_alter_system = off (defaults to "on")
   * set_user.block_copy_program = off (defaults to "on")
@@ -27,6 +27,7 @@ reset_user(text token) returns text
       * list of user roles (i.e. ```<role1>, <role2>,...,<roleN>```)
       * Group roles may be indicated by ```+<roleN>```
       * The wildcard character ```*```
+* To make use of the optional ```set_user``` and ```reset_user``` hooks, please refer to the [hooks](#post-execution-hooks) section.
 
 ## Description
 
@@ -40,6 +41,7 @@ This PostgreSQL extension allows switching users and optionally privilege escala
 * If set_user.block_log_statement is set to "on", ```SET log_statement``` and
   variations will be blocked.
 * If set_user.block_log_statement is set to "on" and ```rolename``` is a database superuser, the current log_statement setting is changed to "all", meaning every SQL statement executed
+* [Post-execution hook](#post_set_user_hook)  for ```set_user``` is called if it is set.
 
 Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only roles explicitly listed or included by a group that is explicitly listed (e.g. '+admin') in set_user.superuser_whitelist can escalate to superuser. If set_user.superuser_whitelist is explicitly set to the empty set, '', superuser escalation is blocked for all users. If the whitelist is equal to the wildcard character, '*', all users with EXECUTE permission on ```set_user_u()``` can escalate to superuser. The default value of set_user.superuser_whitelist is '*'.
 
@@ -50,6 +52,7 @@ When finished with required actions as ```rolename```, the ```reset_user()``` fu
 * Role transition is logged.
 * log_statement setting is set to its original value.
 * Blocked command behaviors return to normal.
+* [Post-execution hook](#post_reset_user_hook) for ```reset_user``` is called if it is set.
 
 If ```set_user```, was provided with a ```token```, then ```reset_user('token')``` must be called instead of ```reset_user()```:
 * The provided ```token``` is compared with the stored token.
@@ -80,6 +83,41 @@ Although this extension compiles and works with all supported versions of Postgr
 The following changes/enhancements are contemplated:
 
 * Improve regression tests
+
+##  Post-Execution Hooks
+
+```set_user``` exposes two hooks that may be used to control post-execution behavior for ```set_user``` and ```reset_user```.
+
+### Description
+
+The following hooks are called (if set) directly before returning from successful calls to ```set_user``` and ```reset_user```. These hooks are meant to give other extensions awareness of ```set_user``` actions. This is helpful, for instance, to keep track of dynamic user switching within a session.
+
+###### ```post_set_user_hook```
+
+Allows another extension to take action after calls to ```set_user```. This hook takes the username as an argument so that the hook implementation is aware of the username.
+
+###### ```post_reset_user_hook```
+
+Allows another extension to take action after calls to ```reset_user```. This hook does not take any arguments, since the resulting username will always be the ```session_user```.
+
+### Configuration
+
+Follow the instructions below to implement ```set_user``` and ```reset_user``` post-execution hooks in another extension:
+
+* Add '-I$(includedir)' to ```CPPFLAGS``` of the extension which implements the post-execution hooks.
+* ```#include set_user.h``` in whichever file implements the hooks.
+* Register ```post_set_user_hook``` and ```post_reset_user_hook``` with local implementations in the extension which implements the post-execution hooks.
+* Ensure that ```set_user``` is listed before any implementing extension in shared_preload_libraries so postgres loads the hooks into memory before the implementation is loaded.
+
+Configuration is described in more detail in the [post-execution hooks](#install-set_user-post-execution-hooks) subsection of the Install documentation.
+
+### Caveats
+
+If another extension implements the post-execution hooks, ```post_set_user_hook``` and ```post_reset_user_hook```, ```set_user``` must be listed before that extension in shared_preload_libraries. This is due to the way shared_preload_libraries are opened and loaded into memory by postgres: the hooks need to be loaded into memory before their implementations can access them.
+
+### TODO
+
+* Add ability to create dependencies in shared_preload_libraries such that extension order does not matter.
 
 ## Installation
 
@@ -198,6 +236,46 @@ psql <database>
 CREATE EXTENSION set_user;
 ```
 
+######  Install ```set_user``` post-execution hooks:
+
+Ensure that ```set_user.h``` is copied to ```$(includedir)```.
+
+This can be done automatically upon normal installation:
+
+```bash
+$> make USE_PGXS=1 install
+```
+
+There is also an explicit make target available to copy the header file to the appropriate directory.
+
+```bash
+$> make USE_PGXS=1 install-headers
+```
+
+Ensure that the implementing extension adds ```-I$(includedir)``` to ```CPPFLAGS``` in its Makefile:
+
+```
+# Add -I$(includedir) to CPPFLAGS so the set_user header is included
+override CPPFLAGS += -I$(includedir)
+```
+
+Ensure that the implementing extension includes the ```set_user``` header file in the appropriate C file:
+
+```
+/* Include set_user hooks in whichever C file implements the hooks */
+#include "set_user.h"
+
+...
+
+post_set_user_hook = my_post_set_user_implementation;
+post_reset_user_hook_type = my_post_reset_user_implementation;
+```
+
+Edit postgresql.conf and ensure that ```set_user``` is listed before the implementing extension ```<extension_name>``` in shared_preload_libraries:
+```
+# Make sure set_user is listed before implementing extension
+shared_preload_libraries = 'set_user, <extension_name>'
+```
 
 ## GUC Parameters
 
