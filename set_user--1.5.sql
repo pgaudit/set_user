@@ -1,4 +1,4 @@
-/* set-user--1.4.sql */
+/* set-user--1.5.sql */
 
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
 \echo Use "CREATE EXTENSION set_user" to load this file. \quit
@@ -37,3 +37,5 @@ AS 'MODULE_PATHNAME', 'set_user'
 LANGUAGE C STRICT;
 
 REVOKE EXECUTE ON FUNCTION set_user_u(text) FROM PUBLIC;
+
+/* No new sql functions for 1.5 */
