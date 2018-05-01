@@ -104,6 +104,7 @@
 
 #include "set_user.h"
 #define WHITELIST_WILDCARD	"*"
+#define SUPERUSER_AUDIT_TAG	"AUDIT"
 
 PG_MODULE_MAGIC;
 
@@ -127,6 +128,7 @@ static bool Block_CP = false;
 
 static bool Block_LS = false;
 static char *SU_Whitelist = NULL;
+static char *SU_AuditTag = NULL;
 
 #ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
 /* 9.5 - master */
@@ -356,14 +358,34 @@ set_user(PG_FUNCTION_ARGS)
 													 false, false));
 		MemoryContextSwitchTo(oldcontext);
 
-		/*
-		 * Force logging of everything if block_log_statement is true
-		 * and we are escalating to superuser. If not escalating to superuser
-		 * the caller could always set log_statement to all prior to using
-		 * set_user, and ensure Block_LS is true.
-		 */
 		if (NewUser_is_superuser && Block_LS)
+		{
+			char	   *new_log_prefix = NULL;
+			char	   *old_log_prefix = NULL;
+
+
+			old_log_prefix = GetConfigOption("log_line_prefix", true, false);
+
+			if (old_log_prefix)
+				new_log_prefix = psprintf("%s %s: ", old_log_prefix, SU_AuditTag);
+			else
+				new_log_prefix = pstrdup(SU_AuditTag);
+
+			/*
+			 * Force logging of everything if block_log_statement is true
+			 * and we are escalating to superuser. If not escalating to superuser the
+			 * caller could always set log_statement to all prior to using set_user,
+			 * and ensure Block_LS is true.
+			 */
 			SetConfigOption("log_statement", "all", PGC_SUSET, PGC_S_SESSION);
+
+			/*
+			 * Add a custom AUDIT tag to postgresql.conf setting
+			 * 'log_line_prefix' so log statements are tagged for easy
+			 * filtering.
+			 */
+			SetConfigOption("log_line_prefix", new_log_prefix, PGC_POSTMASTER, PGC_S_SESSION);
+		}
 	}
 	else if (is_reset)
 	{
@@ -452,6 +474,11 @@ _PG_init(void)
 	DefineCustomStringVariable("set_user.superuser_whitelist",
 							 "Allows a list of users to use set_user_u for superuser escalation",
 							 NULL, &SU_Whitelist, WHITELIST_WILDCARD, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
+
+	DefineCustomStringVariable("set_user.superuser_audit_tag",
+							 "Set custom tag for superuser audit escalation",
+							 NULL, &SU_AuditTag, SUPERUSER_AUDIT_TAG, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;

@@ -41,6 +41,7 @@ This PostgreSQL extension allows switching users and optionally privilege escala
 * If set_user.block_log_statement is set to "on", ```SET log_statement``` and
   variations will be blocked.
 * If set_user.block_log_statement is set to "on" and ```rolename``` is a database superuser, the current log_statement setting is changed to "all", meaning every SQL statement executed
+* If set_user.superuser_audit_tag is set, the string value will be appended to log_line_prefix upon superuser escalation. All logs after superuser escalation  will be tagged with the value of set_user.superuser_audit_tag. This value defaults to 'AUDIT'.
 * [Post-execution hook](#post_set_user_hook)  for ```set_user``` is called if it is set.
 
 Only users with EXECUTE permission on ```set_user_u('rolename')``` may escalate to superuser. Additionally, only roles explicitly listed or included by a group that is explicitly listed (e.g. '+admin') in set_user.superuser_whitelist can escalate to superuser. If set_user.superuser_whitelist is explicitly set to the empty set, '', superuser escalation is blocked for all users. If the whitelist is equal to the wildcard character, '*', all users with EXECUTE permission on ```set_user_u()``` can escalate to superuser. The default value of set_user.superuser_whitelist is '*'.
