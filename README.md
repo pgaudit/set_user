@@ -152,7 +152,7 @@ which have been granted access to one of the existing superuser roles.
 #### Perform Actions With Enhanced Logging
 
 Once a transition has been made, the current session behaves as if it has the
-privileges of the new `current_user`.  The optional enhanced logging ensures an
+privileges of the new `current_user`.  The optional enhanced logging creates an
 audit trail upon transition to an alternate role, ensuring that any privilege
 escalation/alteration does not go unmonitored.
 
