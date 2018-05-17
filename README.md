@@ -12,22 +12,22 @@ reset_user(text token) returns text
 
 ## Inputs
 
-```rolename``` is the role to be transitioned to.
-```token``` if provided during set_user is saved, and then required to be provided again for reset.
+`rolename` is the role to be transitioned to.
+`token` if provided during set_user is saved, and then required to be provided again for reset.
 
 ## Configuration Options
 
-* Add ```set_user``` to shared_preload_libraries in postgresql.conf.
+* Add `set_user` to `shared_preload_libraries` in postgresql.conf.
 * Optionally, the following custom parameters may be set to control their respective commands:
   * set_user.block_alter_system = off (defaults to "on")
   * set_user.block_copy_program = off (defaults to "on")
   * set_user.block_log_statement = off (defaults to "on")
-  * set_user.superuser_whitelist = '```<role list>```
-    * ```<role list>``` can contain any of the following:
-      * list of user roles (i.e. ```<role1>, <role2>,...,<roleN>```)
-      * Group roles may be indicated by ```+<roleN>```
-      * The wildcard character ```*```
-* To make use of the optional ```set_user``` and ```reset_user``` hooks, please refer to the [hooks](#post-execution-hooks) section.
+  * set_user.superuser_whitelist = `'<role list>'`
+    * `<role list>` can contain any of the following:
+      * list of user roles (i.e. `<role1>, <role2>,...,<roleN>`)
+      * Group roles may be indicated by `+<roleN>`
+      * The wildcard character `*`
+* To make use of the optional `set_user` and `reset_user` hooks, please refer to the [hooks](#post-execution-hooks) section.
 
 ## Description
 
@@ -35,53 +35,53 @@ This PostgreSQL extension allows switching users and optional privilege
 escalation with enhanced logging and control. It provides an additional layer of
 logging and control when unprivileged users must escalate themselves to
 superuser or object owner roles in order to perform needed maintenance tasks.
-Specifically, when an allowed user executes ```set_user('rolename')``` or
-```set_user_u('rolename')```, several actions occur:
+Specifically, when an allowed user executes `set_user('rolename')` or
+`set_user_u('rolename')`, several actions occur:
 
-* The current effective user becomes ```rolename```.
-* The role transition is logged, with a specific notation if ```rolename``` is a superuser.
+* The current effective user becomes `rolename`.
+* The role transition is logged, with a specific notation if `rolename` is a superuser.
 * `log_statement` setting is set to "all", meaning every SQL statement executed
   while in this state will also get logged.
-* If `set_user.block_alter_system` is set to "on", ```ALTER SYSTEM``` commands will be blocked.
-* If `set_user.block_copy_program` is set to "on", ```COPY PROGRAM``` commands will be blocked.
-* If `set_user.block_log_statement` is set to "on", ```SET log_statement``` and
+* If `set_user.block_alter_system` is set to "on", `ALTER SYSTEM` commands will be blocked.
+* If `set_user.block_copy_program` is set to "on", `COPY PROGRAM` commands will be blocked.
+* If `set_user.block_log_statement` is set to "on", `SET log_statement` and
   variations will be blocked.
-* If `set_user.block_log_statement` is set to "on" and ```rolename``` is a
-  database superuser, the current log_statement setting is changed to "all",
+* If `set_user.block_log_statement` is set to "on" and `rolename` is a
+  database superuser, the current `log_statement` setting is changed to "all",
   meaning every SQL statement executed
 * If `set_user.superuser_audit_tag` is set, the string value will be appended to
   `log_line_prefix` upon superuser escalation. All logs after superuser escalation
   will be tagged with the value of `set_user.superuser_audit_tag`. This value
   defaults to `'AUDIT'`.
-* [Post-execution hook](#post_set_user_hook)  for ```set_user``` is called if it is set.
+* [Post-execution hook](#post_set_user_hook)  for `set_user` is called if it is set.
 
-Only users with `EXECUTE` permission on ```set_user_u('rolename')``` may escalate
+Only users with `EXECUTE` permission on `set_user_u('rolename')` may escalate
 to superuser. Additionally, only roles explicitly listed or included by a group
-that is explicitly listed (e.g. '`+admin`') in `set_user.superuser_whitelist` can
+that is explicitly listed (e.g. `'+admin'`) in `set_user.superuser_whitelist` can
 escalate to superuser. If `set_user.superuser_whitelist` is explicitly set to the
 empty set, `''`, superuser escalation is blocked for all users. If the whitelist
 is equal to the wildcard character, `'*'`, all users with `EXECUTE` permission on
-```set_user_u()``` can escalate to superuser. The default value of
+`set_user_u()` can escalate to superuser. The default value of
 `set_user.superuser_whitelist` is `'*'`.
 
-Additionally, with ```set_user('rolename','token')``` the ```token``` is stored
+Additionally, with `set_user('rolename','token')` the `token` is stored
 for the lifetime of the session.
 
-When finished with required actions as ```rolename```, the ```reset_user()```
+When finished with required actions as `rolename`, the `reset_user()`
 function is executed to restore the original user. At that point, these actions
 occur:
 
 * Role transition is logged.
 * `log_statement` setting is set to its original value.
 * Blocked command behaviors return to normal.
-* [Post-execution hook](#post_reset_user_hook) for ```reset_user``` is called if it is set.
+* [Post-execution hook](#post_reset_user_hook) for `reset_user` is called if it is set.
 
-If ```set_user```, was provided with a ```token```, then
-```reset_user('token')``` must be called instead of ```reset_user()```:
+If `set_user`, was provided with a `token`, then
+`reset_user('token')` must be called instead of `reset_user()`:
 
-* The provided ```token``` is compared with the stored token.
-* If the tokens do not match, or if a ```token``` was provided to ```set_user```
-  but not ```reset_user```, an ERROR occurs.
+* The provided `token` is compared with the stored token.
+* If the tokens do not match, or if a `token` was provided to `set_user`
+  but not `reset_user`, an ERROR occurs.
 
 ### `set_user` Usage
 
@@ -128,11 +128,11 @@ SELECT set_user_u('postgres');
 
 **Note:** Superuser escalation is only allowed for the roles listed in
 `set_user.superuser_whitelist`. If the whitelist is equal to `'*'`, all roles
-that have been granted `EXECUTE` on ```set_user_u``` can escalate to superuser.
+that have been granted `EXECUTE` on `set_user_u` can escalate to superuser.
 This is the default setting of `set_user.superuser_whitelist`.
 
-Once one or more unprivileged users are able to run ```set_user_u()``` in order
-to escalate their privileges, the superuser account (typically ```postgres```)
+Once one or more unprivileged users are able to run `set_user_u()` in order
+to escalate their privileges, the superuser account (typically `postgres`)
 can be altered to `NOLOGIN`, preventing any direct database connection by a
 superuser which would bypass the enhanced logging.
 
@@ -175,15 +175,15 @@ properly, you must include `set_user` in `shared_preload_libraries` in
 
 Notes:
 
-If set_user.block_log_statement is set to "off", the log_statement setting is left unchanged.
+If set_user.block_log_statement is set to "off", the `log_statement` setting is left unchanged.
 
-For the blocking of ```ALTER SYSTEM``` and ```COPY PROGRAM``` to work properly, you must include ```set_user``` in shared_preload_libraries in postgresql.conf and restart PostgreSQL.
+For the blocking of `ALTER SYSTEM` and `COPY PROGRAM` to work properly, you must include `set_user` in shared_preload_libraries in postgresql.conf and restart PostgreSQL.
 
-Neither```set_user('rolename')``` nor ```set_user_u('rolename')``` may be executed from within an explicit transaction block.
+Neither `set_user('rolename')` nor `set_user_u('rolename')` may be executed from within an explicit transaction block.
 
 ## Caveats
 
-In its current state, this extension cannot prevent ```rolename``` from performing a variety of nefarious or otherwise undesireable actions. However, these actions will be logged providing an audit trail, which could also be used to trigger alerts.
+In its current state, this extension cannot prevent `rolename` from performing a variety of nefarious or otherwise undesireable actions. However, these actions will be logged providing an audit trail, which could also be used to trigger alerts.
 
 Although this extension compiles and works with all supported versions of PostgreSQL starting with PostgreSQL 9.1, all features are not supported until PostgreSQL 9.4 or higher. The ALTER SYSTEM command does not exist prior to 9.4 and COPY PROGRAM does not exist prior to 9.3.
 
@@ -195,38 +195,38 @@ The following changes/enhancements are contemplated:
 
 ##  Post-Execution Hooks
 
-```set_user``` exposes two hooks that may be used to control post-execution behavior for ```set_user``` and ```reset_user```.
+`set_user` exposes two hooks that may be used to control post-execution behavior for `set_user` and `reset_user`.
 
 ### Description
 
-The following hooks are called (if set) directly before returning from successful calls to ```set_user``` and ```reset_user```. These hooks are meant to give other extensions awareness of ```set_user``` actions. This is helpful, for instance, to keep track of dynamic user switching within a session.
+The following hooks are called (if set) directly before returning from successful calls to `set_user` and `reset_user`. These hooks are meant to give other extensions awareness of `set_user` actions. This is helpful, for instance, to keep track of dynamic user switching within a session.
 
-###### ```post_set_user_hook```
+###### `post_set_user_hook`
 
-Allows another extension to take action after calls to ```set_user```. This hook takes the username as an argument so that the hook implementation is aware of the username.
+Allows another extension to take action after calls to `set_user`. This hook takes the username as an argument so that the hook implementation is aware of the username.
 
-###### ```post_reset_user_hook```
+###### `post_reset_user_hook`
 
-Allows another extension to take action after calls to ```reset_user```. This hook does not take any arguments, since the resulting username will always be the ```session_user```.
+Allows another extension to take action after calls to `reset_user`. This hook does not take any arguments, since the resulting username will always be the `session_user`.
 
 ### Configuration
 
-Follow the instructions below to implement ```set_user``` and ```reset_user``` post-execution hooks in another extension:
+Follow the instructions below to implement `set_user` and `reset_user` post-execution hooks in another extension:
 
-* Add '-I$(includedir)' to ```CPPFLAGS``` of the extension which implements the post-execution hooks.
-* ```#include set_user.h``` in whichever file implements the hooks.
-* Register ```post_set_user_hook``` and ```post_reset_user_hook``` with local implementations in the extension which implements the post-execution hooks.
-* Ensure that ```set_user``` is listed before any implementing extension in shared_preload_libraries so postgres loads the hooks into memory before the implementation is loaded.
+* Add '-I$(includedir)' to `CPPFLAGS` of the extension which implements the post-execution hooks.
+* `#include set_user.h` in whichever file implements the hooks.
+* Register `post_set_user_hook` and `post_reset_user_hook` with local implementations in the extension which implements the post-execution hooks.
+* Ensure that `set_user` is listed before any implementing extension in `shared_preload_libraries` so postgres loads the hooks into memory before the implementation is loaded.
 
 Configuration is described in more detail in the [post-execution hooks](#install-set_user-post-execution-hooks) subsection of the Install documentation.
 
 ### Caveats
 
-If another extension implements the post-execution hooks, ```post_set_user_hook``` and ```post_reset_user_hook```, ```set_user``` must be listed before that extension in shared_preload_libraries. This is due to the way shared_preload_libraries are opened and loaded into memory by postgres: the hooks need to be loaded into memory before their implementations can access them.
+If another extension implements the post-execution hooks, `post_set_user_hook` and `post_reset_user_hook`, `set_user` must be listed before that extension in `shared_preload_libraries`. This is due to the way `shared_preload_libraries` are opened and loaded into memory by postgres: the hooks need to be loaded into memory before their implementations can access them.
 
 ### TODO
 
-* Add ability to create dependencies in shared_preload_libraries such that extension order does not matter.
+* Add ability to create dependencies in `shared_preload_libraries` such that extension order does not matter.
 
 ## Installation
 
@@ -261,25 +261,25 @@ Change to the contrib directory:
 $> cd contrib
 ```
 
-Clone ```set_user``` extension:
+Clone `set_user` extension:
 
 ```bash
 $> git clone https://github.com/pgaudit/set_user
 ```
 
-Change to ```set_user``` directory:
+Change to `set_user` directory:
 
 ```bash
 $> cd set_user
 ```
 
-Build ```set_user```:
+Build `set_user`:
 
 ```bash
 $> make
 ```
 
-Install ```set_user```:
+Install `set_user`:
 
 ```bash
 $> make install
@@ -287,7 +287,7 @@ $> make install
 
 #### Using PGXS
 
-If an instance of PostgreSQL is already installed, then PGXS can be utilized to build and install ```set_user```.  Ensure that PostgreSQL binaries are available via the ```$PATH``` environment variable then use the following commands.
+If an instance of PostgreSQL is already installed, then PGXS can be utilized to build and install `set_user`.  Ensure that PostgreSQL binaries are available via the `$PATH` environment variable then use the following commands.
 
 ```bash
 $> make USE_PGXS=1
@@ -310,9 +310,9 @@ $> initdb -D /path/to/data/directory
 $> createdb <database>
 ```
 
-###### Install ```set_user``` functions:
+###### Install `set_user` functions:
 
-Edit postgresql.conf and add ```set_user``` to the shared_preload_libraries line, optionally also changing custom settings as mentioned above.
+Edit postgresql.conf and add `set_user` to the `shared_preload_libraries` line, optionally also changing custom settings as mentioned above.
 
 First edit postgresql.conf in your favorite editor:
 
@@ -345,9 +345,9 @@ psql <database>
 CREATE EXTENSION set_user;
 ```
 
-######  Install ```set_user``` post-execution hooks:
+######  Install `set_user` post-execution hooks:
 
-Ensure that ```set_user.h``` is copied to ```$(includedir)```.
+Ensure that `set_user.h` is copied to `$(includedir)`.
 
 This can be done automatically upon normal installation:
 
@@ -361,14 +361,14 @@ There is also an explicit make target available to copy the header file to the a
 $> make USE_PGXS=1 install-headers
 ```
 
-Ensure that the implementing extension adds ```-I$(includedir)``` to ```CPPFLAGS``` in its Makefile:
+Ensure that the implementing extension adds `-I$(includedir)` to `CPPFLAGS` in its Makefile:
 
 ```
 # Add -I$(includedir) to CPPFLAGS so the set_user header is included
 override CPPFLAGS += -I$(includedir)
 ```
 
-Ensure that the implementing extension includes the ```set_user``` header file in the appropriate C file:
+Ensure that the implementing extension includes the `set_user` header file in the appropriate C file:
 
 ```
 /* Include set_user hooks in whichever C file implements the hooks */
@@ -380,7 +380,7 @@ post_set_user_hook = my_post_set_user_implementation;
 post_reset_user_hook_type = my_post_reset_user_implementation;
 ```
 
-Edit postgresql.conf and ensure that ```set_user``` is listed before the implementing extension ```<extension_name>``` in shared_preload_libraries:
+Edit postgresql.conf and ensure that `set_user` is listed before the implementing extension `<extension_name>` in `shared_preload_libraries`:
 ```
 # Make sure set_user is listed before implementing extension
 shared_preload_libraries = 'set_user, <extension_name>'
@@ -389,13 +389,13 @@ shared_preload_libraries = 'set_user, <extension_name>'
 ## GUC Parameters
 
 * Block ALTER SYSTEM commands
-  * set_user.block_alter_system = on
+  * `set_user.block_alter_system = on`
 * Block COPY PROGRAM commands
-  * set_user.block_copy_program = on
+  * `set_user.block_copy_program = on`
 * Block SET log_statement commands
-  * set_user.block_log_statement = on
+  * `set_user.block_log_statement = on`
 * Allow list of roles to escalate to superuser
-  * set_user.superuser_whitelist = '```<role1>,<role2>,...,<roleN>```'
+  * `set_user.superuser_whitelist = '<role1>,<role2>,...,<roleN>'`
 
 
 ## Examples
