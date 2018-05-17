@@ -387,7 +387,7 @@ $> make USE_PGXS=1 install
 ```
 
 There is also an explicit make target available to copy the header file to the
-appropriate directory.
+appropriate directory:
 
 ```bash
 $> make USE_PGXS=1 install-headers
