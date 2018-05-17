@@ -204,12 +204,6 @@ PostgreSQL starting with PostgreSQL 9.1, all features are not supported until
 PostgreSQL 9.4 or higher. The ALTER SYSTEM command does not exist prior to 9.4
 and COPY PROGRAM does not exist prior to 9.3.
 
-## TODO
-
-The following changes/enhancements are contemplated:
-
-* Improve regression tests
-
 ##  Post-Execution Hooks
 
 `set_user` exposes two hooks that may be used to control post-execution behavior
@@ -259,11 +253,6 @@ and `post_reset_user_hook`, `set_user` must be listed before that extension in
 `shared_preload_libraries`. This is due to the way `shared_preload_libraries`
 are opened and loaded into memory by postgres: the hooks need to be loaded into
 memory before their implementations can access them.
-
-### TODO
-
-* Add ability to create dependencies in `shared_preload_libraries` such that
-  extension order does not matter.
 
 ## Installation
 
@@ -640,6 +629,14 @@ OR
 ---------+--------+-------------+----------+------------
 (0 rows)
 ```
+
+## TODO
+
+The following changes/enhancements are contemplated:
+
+* Improve regression tests
+* Add ability to create dependencies in `shared_preload_libraries` such that
+  extension order does not matter.
 
 ##  Licensing
 
