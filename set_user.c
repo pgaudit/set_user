@@ -360,14 +360,11 @@ set_user(PG_FUNCTION_ARGS)
 
 		if (NewUser_is_superuser && Block_LS)
 		{
-			char	   *new_log_prefix = NULL;
-			char	   *old_log_prefix = NULL;
-
-
-			old_log_prefix = GetConfigOption("log_line_prefix", true, false);
+			const char	   *old_log_prefix = GetConfigOption("log_line_prefix", true, false);
+			char		   *new_log_prefix = NULL;
 
 			if (old_log_prefix)
-				new_log_prefix = psprintf("%s %s: ", old_log_prefix, SU_AuditTag);
+				new_log_prefix = psprintf("%s%s: ", old_log_prefix, SU_AuditTag);
 			else
 				new_log_prefix = pstrdup(SU_AuditTag);
 
