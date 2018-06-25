@@ -234,7 +234,6 @@ check_user_whitelist(Oid userId, const char *whitelist)
 								 "or remove the wildcard character \"%s\". The whitelist "
 								 "cannot contain both.",
 								 WHITELIST_WILDCARD)));
-				result = true;
 		}
 	}
 	return result;
