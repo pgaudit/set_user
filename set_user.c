@@ -128,6 +128,7 @@ static bool Block_CP = false;
 
 static bool Block_LS = false;
 static char *SU_Whitelist = NULL;
+static char *NOSU_TargetWhitelist = NULL;
 static char *SU_AuditTag = NULL;
 
 #ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
@@ -349,6 +350,13 @@ set_user(PG_FUNCTION_ARGS)
 						 errmsg("switching to superuser not allowed"),
 						 errhint("Add current user to set_user.superuser_whitelist.")));
 		}
+		else if(!check_user_whitelist(NewUserId, NOSU_TargetWhitelist))
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+					 errmsg("switching to role is not allowed"),
+					 errhint("Add target role to set_user.nosuperuser_target_whitelist.")));
+		}
 
 		/* keep track of original userid and value of log_statement */
 		save_OldUserId = OldUserId;
@@ -465,6 +473,11 @@ _PG_init(void)
 	DefineCustomBoolVariable("set_user.block_log_statement",
 							 "Blocks \"SET log_statement\" commands",
 							 NULL, &Block_LS, true, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
+
+	DefineCustomStringVariable("set_user.nosuperuser_target_whitelist",
+							 "List of roles that can be an argument to set_user",
+							 NULL, &NOSU_TargetWhitelist, WHITELIST_WILDCARD, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
 	DefineCustomStringVariable("set_user.superuser_whitelist",
