@@ -44,8 +44,8 @@ This PostgreSQL extension allows switching users and optional privilege
 escalation with enhanced logging and control. It provides an additional layer of
 logging and control when unprivileged users must escalate themselves to
 superuser or object owner roles in order to perform needed maintenance tasks.
-Specifically, when an allowed user executes `set_user('rolename')` or
-`set_user_u('rolename')`, several actions occur:
+Specifically, when an allowed user executes `set_user(text)` or
+`set_user_u(text)`, several actions occur:
 
 * The current effective user becomes `rolename`.
 * The role transition is logged, with a specific notation if `rolename` is a
@@ -236,7 +236,7 @@ For the blocking of `ALTER SYSTEM` and `COPY PROGRAM` to work properly, you must
 include `set_user` in shared_preload_libraries in postgresql.conf and restart
 PostgreSQL.
 
-Neither `set_user('rolename')` nor `set_user_u('rolename')` may be executed from
+Neither `set_user(text)` nor `set_user_u(text)` may be executed from
 within an explicit transaction block.
 
 ## Caveats
