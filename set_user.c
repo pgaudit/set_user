@@ -113,9 +113,6 @@ static Oid save_OldUserId = InvalidOid;
 static char *reset_token = NULL;
 static ProcessUtility_hook_type prev_hook = NULL;
 
-post_reset_user_hook_type post_reset_user_hook = NULL;
-post_set_user_hook_type post_set_user_hook = NULL;
-
 #ifdef HAS_ALTER_SYSTEM
 /* 9.4 & up */
 static bool Block_AS = false;
@@ -160,7 +157,7 @@ static void PU_hook(Node *parsetree, const char *queryString,
 #endif
 #endif
 
-extern void PostSetUserHook(bool is_reset, const char *newuser);
+static void PostSetUserHook(bool is_reset, const char *newuser);
 
 extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
@@ -628,14 +625,24 @@ PU_hook(Node *parsetree, const char *queryString,
 /*
  * PostSetUserHook
  *
- * Handler for the post_set_user_hook
+ * Handler for set_user post hooks
  */
 void
 PostSetUserHook(bool is_reset, const char *username)
 {
-	if (post_reset_user_hook && is_reset)
-		(*post_reset_user_hook) ();
-	else if (post_set_user_hook)
-		(*post_set_user_hook) (username);
-	return;
+	/* Inter-extension hooks */
+	SetUserHooks **post_hooks;
+
+	post_hooks = (SetUserHooks **) find_rendezvous_variable(SET_USER_HOOKS_KEY);
+	if (*post_hooks)
+	{
+		if (!is_reset && (*post_hooks)->post_set_user)
+		{
+			(*post_hooks)->post_set_user(username);
+		}
+		else if ((*post_hooks)->post_reset_user)
+		{
+			(*post_hooks)->post_reset_user();
+		}
+	}
 }
