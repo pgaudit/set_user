@@ -263,13 +263,17 @@ successful calls to `set_user` and `reset_user`. These hooks are meant to give
 other extensions awareness of `set_user` actions. This is helpful, for instance,
 to keep track of dynamic user switching within a session.
 
-###### `post_set_user_hook`
+To avoid order-dependency in `shared_preload_libraries`, these hooks are
+registered in the rendezvous hash table of core Postgres. The header defines a
+[utility function](set_user.h#L13) for doing all of the necessary setup.
+
+###### `post_set_user` hook
 
 Allows another extension to take action after calls to `set_user`. This hook
 takes the username as an argument so that the hook implementation is aware of
 the username.
 
-###### `post_reset_user_hook`
+###### `post_reset_user` hook
 
 Allows another extension to take action after calls to `reset_user`. This hook
 does not take any arguments, since the resulting username will always be the
@@ -283,11 +287,8 @@ post-execution hooks in another extension:
 * Add '-I$(includedir)' to `CPPFLAGS` of the extension which implements the
   post-execution hooks.
 * `#include set_user.h` in whichever file implements the hooks.
-* Register `post_set_user_hook` and `post_reset_user_hook` with local
-  implementations in the extension which implements the post-execution hooks.
-* Ensure that `set_user` is listed before any implementing extension in
-  `shared_preload_libraries` so postgres loads the hooks into memory before the
-  implementation is loaded.
+* Register hook implementations in `rendezvous_variable` hash using the
+  `register_set_user_hooks` utility function.
 
 Configuration is described in more detail in the [post-execution
 hooks](#install-set_user-post-execution-hooks) subsection of the Install
@@ -298,7 +299,7 @@ documentation.
 If another extension implements the post-execution hooks, `post_set_user_hook`
 and `post_reset_user_hook`, `set_user` must be listed before that extension in
 `shared_preload_libraries`. This is due to the way `shared_preload_libraries`
-are opened and loaded into memory by postgres: the hooks need to be loaded into
+are opened and loaded into memory by Postgres: the hooks need to be loaded into
 memory before their implementations can access them.
 
 ## Installation
@@ -452,22 +453,49 @@ override CPPFLAGS += -I$(includedir)
 Ensure that the implementing extension includes the `set_user` header file in
 the appropriate C file:
 
-```
+```c
 /* Include set_user hooks in whichever C file implements the hooks */
 #include "set_user.h"
 
-...
-
-post_set_user_hook = my_post_set_user_implementation;
-post_reset_user_hook_type = my_post_reset_user_implementation;
 ```
+Create your `set_user` hooks and register them in the rendezvous_variable hash:
 
-Edit postgresql.conf and ensure that `set_user` is listed before the
-implementing extension `<extension_name>` in `shared_preload_libraries`:
+```c
+void _PG_Init(void)
+{
+	/*
+	 * Your _PG_Init code here
+	 */
 
-```
-# Make sure set_user is listed before implementing extension
-shared_preload_libraries = 'set_user, <extension_name>'
+	 register_set_user_hooks(extension_post_set_user, extension_post_reset_user);
+
+	/*
+	 * more _PG_Init code
+	 */
+}
+
+/*
+ * extension_post_set_user
+ *
+ * Entrypoint of the set_user post-exec hook.
+ */
+static void
+extension_post_set_user(void)
+{
+	/* Some magic */
+}
+
+/*
+ * extension_post_reset_user
+ *
+ * Entrypoint of the reset_user post-exec hook.
+ */
+static void
+extension_post_reset_user(void)
+{
+	/* Some magic */
+}
+
 ```
 
 ## GUC Parameters
