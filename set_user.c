@@ -289,7 +289,21 @@ set_user(PG_FUNCTION_ARGS)
 		procTup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcOid));
 		if (!HeapTupleIsValid(procTup))
 			elog(ERROR, "cache lookup failed for function %u", funcOid);
+
 		procStruct = (Form_pg_proc) GETSTRUCT(procTup);
+		if (!procStruct)
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("set_user: function lookup failed for %u", funcOid)));
+		}
+		else if (!NameStr(procStruct->proname))
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("set_user: NULL name for function %u", funcOid)));
+		}
+
 		funcname = pstrdup(NameStr(procStruct->proname));
 		ReleaseSysCache(procTup);
 
@@ -321,7 +335,16 @@ set_user(PG_FUNCTION_ARGS)
 		{
 			/* use session lifetime memory */
 			oldcontext = MemoryContextSwitchTo(TopMemoryContext);
-			/* capture the reset token */
+
+			/* this should never be NULL but just in case */
+			if (PG_ARGISNULL(1))
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("set_user: NULL reset_token not valid")));
+			}
+
+			/*capture the reset token */
 			reset_token = text_to_cstring(PG_GETARG_TEXT_PP(1));
 			MemoryContextSwitchTo(oldcontext);
 		}
