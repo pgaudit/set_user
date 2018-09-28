@@ -630,19 +630,23 @@ PU_hook(Node *parsetree, const char *queryString,
 void
 PostSetUserHook(bool is_reset, const char *username)
 {
-	/* Inter-extension hooks */
-	SetUserHooks **post_hooks;
+	List		  **hooks_queue;
+	ListCell	   *hooks_entry = NULL;
 
-	post_hooks = (SetUserHooks **) find_rendezvous_variable(SET_USER_HOOKS_KEY);
-	if (*post_hooks)
+	hooks_queue = (List **) find_rendezvous_variable(SET_USER_HOOKS_KEY);
+	foreach (hooks_entry, *hooks_queue)
 	{
-		if (!is_reset && (*post_hooks)->post_set_user)
+		SetUserHooks	**post_hooks = (SetUserHooks **) lfirst(hooks_entry);
+		if (post_hooks)
 		{
-			(*post_hooks)->post_set_user(username);
-		}
-		else if ((*post_hooks)->post_reset_user)
-		{
-			(*post_hooks)->post_reset_user();
+			if (!is_reset && (*post_hooks)->post_set_user)
+			{
+				(*post_hooks)->post_set_user(username);
+			}
+			else if ((*post_hooks)->post_reset_user)
+			{
+				(*post_hooks)->post_reset_user();
+			}
 		}
 	}
 }
