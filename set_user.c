@@ -351,7 +351,12 @@ set_user(PG_FUNCTION_ARGS)
 		if (!HeapTupleIsValid(roleTup))
 			elog(ERROR, "role \"%s\" does not exist", newuser);
 
+/* OID column is removed in PG12 */
+#if PG_VERSION_NUM >= 120000
+		NewUserId = ((Form_pg_authid) GETSTRUCT(roleTup))->oid;
+#else
 		NewUserId = HeapTupleGetOid(roleTup);
+#endif
 		NewUser_is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 		ReleaseSysCache(roleTup);
 
