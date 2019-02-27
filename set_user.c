@@ -581,9 +581,27 @@ PU_hook(Node *parsetree, const char *queryString,
 				if ((strcmp(((VariableSetStmt *) parsetree)->name,
 					 "log_statement") == 0) &&
 					Block_LS)
+				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("\"SET log_statement\" blocked by set_user config")));
+				}
+				else if ((strcmp(((VariableSetStmt *) parsetree)->name,
+					 "role") == 0))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("\"RESET role\" blocked by set_user"),
+							 errhint("\"Use `SELECT reset_user();` to reset role\"")));
+				}
+				else if ((strcmp(((VariableSetStmt *) parsetree)->name,
+					 "user") == 0))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("\"RESET user\" blocked by set_user"),
+							 errhint("\"Use `SELECT reset_user();` to reset user\"")));
+				}
 				break;
 			default:
 				break;
