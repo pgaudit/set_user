@@ -18,6 +18,7 @@ CREATE ROLE su NOINHERIT;
 
 -- dba is the role we want to allow to execute set_user()
 GRANT EXECUTE ON FUNCTION set_user(text) TO dba;
+GRANT EXECUTE ON FUNCTION set_user(text,text) TO dba;
 GRANT EXECUTE ON FUNCTION set_user_u(text) TO dba;
 GRANT newbs TO bob;
 -- joe will be able to escalate without set_user() via su
@@ -49,7 +50,20 @@ RESET log_statement;
 BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 
 -- test reset_user
+RESET ROLE; -- should fail
 SELECT reset_user();
+SELECT SESSION_USER, CURRENT_USER;
+
+-- test set_user and reset_user with token
+SELECT SESSION_USER, CURRENT_USER;
+SELECT set_user('bob', 'secret');
+SELECT SESSION_USER, CURRENT_USER;
+RESET ROLE; -- should fail
+
+SELECT reset_user(); -- should fail
+SELECT SESSION_USER, CURRENT_USER;
+
+SELECT reset_user('secret'); -- succeed
 SELECT SESSION_USER, CURRENT_USER;
 
 RESET SESSION AUTHORIZATION;
