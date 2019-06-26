@@ -1,6 +1,8 @@
 #ifndef SET_USER_H
 #define SET_USER_H
 
+#include "nodes/pg_list.h"
+
 typedef struct SetUserHooks
 {
 	void	(*post_set_user) (const char *username);
