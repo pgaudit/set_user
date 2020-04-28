@@ -13,6 +13,31 @@
 #define SET_USER_COMPAT_H
 
 /*
+ * PostgreSQL version 13+
+ *
+ * Introduces QueryCompletion struct
+ */
+#if PG_VERSION_NUM >= 130000
+
+static void PU_hook(PlannedStmt *pstmt, const char *queryString,
+					ProcessUtilityContext context, ParamListInfo params,
+					QueryEnvironment *queryEnv,
+					DestReceiver *dest, QueryCompletion *qc);
+#define _PU_HOOK \
+	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
+						ProcessUtilityContext context, ParamListInfo params, \
+						QueryEnvironment *queryEnv, \
+						DestReceiver *dest, QueryCompletion *qc)
+
+#define _prev_hook \
+	prev_hook(pstmt, queryString, context, params, queryEnv, dest, qc)
+
+#define _standard_ProcessUtility \
+	standard_ProcessUtility(pstmt, queryString,	context, params, queryEnv, dest, qc)
+
+#endif /* 13+ */
+
+/*
  * PostgreSQL version 12+
  *
  * - Removes OID column
