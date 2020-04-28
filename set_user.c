@@ -32,62 +32,7 @@
 
 #include "pg_config.h"
 
-#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90100
-/* prior to 9.1 */
-#error "This extension only builds with PostgreSQL 9.1 or later"
-#elif PG_VERSION_NUM < 90200
-/* 9.1 */
-
-#elif PG_VERSION_NUM < 90300
-/* 9.2 */
-
-#elif PG_VERSION_NUM < 90400
-/* 9.3 */
-#define HAS_HTUP_DETAILS
-#define HAS_COPY_PROGRAM
-#define HAS_PROCESSUTILITYCONTEXT
-
-#elif PG_VERSION_NUM < 90500
-/* 9.4 */
-#define HAS_HTUP_DETAILS
-#define HAS_ALTER_SYSTEM
-#define HAS_COPY_PROGRAM
-#define HAS_PROCESSUTILITYCONTEXT
-
-#elif PG_VERSION_NUM < 90600
-/* 9.5 */
-#define HAS_HTUP_DETAILS
-#define HAS_ALTER_SYSTEM
-#define HAS_COPY_PROGRAM
-#define HAS_TWO_ARG_GETUSERNAMEFROMID
-#define HAS_PROCESSUTILITYCONTEXT
-
-#elif PG_VERSION_NUM < 100000
-/* 9.6 */
-#define HAS_HTUP_DETAILS
-#define HAS_ALTER_SYSTEM
-#define HAS_COPY_PROGRAM
-#define HAS_TWO_ARG_GETUSERNAMEFROMID
-#define HAS_PROCESSUTILITYCONTEXT
-
-#else
-/* master */
-#define HAS_HTUP_DETAILS
-#define HAS_ALTER_SYSTEM
-#define HAS_COPY_PROGRAM
-#define HAS_TWO_ARG_GETUSERNAMEFROMID
-#define HAS_PROCESSUTILITYCONTEXT
-#define HAS_PSTMT
-#define HAS_VARLENA_H
-
-#endif
-
-#ifdef HAS_HTUP_DETAILS
 #include "access/htup_details.h"
-#else
-#include "access/htup.h"
-#endif
-
 #include "access/xact.h"
 #include "catalog/pg_authid.h"
 #include "catalog/pg_proc.h"
@@ -98,64 +43,27 @@
 #include "utils/guc.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
-#ifdef HAS_VARLENA_H
-#include "utils/varlena.h"
-#endif /* HAS_VARLENA_H */
 
 #include "set_user.h"
-#define WHITELIST_WILDCARD	"*"
-#define SUPERUSER_AUDIT_TAG	"AUDIT"
 
 PG_MODULE_MAGIC;
+
+#include "compatibility.h"
+
+#define WHITELIST_WILDCARD	"*"
+#define SUPERUSER_AUDIT_TAG	"AUDIT"
 
 static char *save_log_statement = NULL;
 static Oid save_OldUserId = InvalidOid;
 static char *reset_token = NULL;
 static ProcessUtility_hook_type prev_hook = NULL;
 
-#ifdef HAS_ALTER_SYSTEM
-/* 9.4 & up */
 static bool Block_AS = false;
-#endif
-
-#ifdef HAS_COPY_PROGRAM
-/* 9.3 & up */
 static bool Block_CP = false;
-#endif
-
 static bool Block_LS = false;
 static char *SU_Whitelist = NULL;
 static char *NOSU_TargetWhitelist = NULL;
 static char *SU_AuditTag = NULL;
-
-#ifdef HAS_TWO_ARG_GETUSERNAMEFROMID
-/* 9.5 - master */
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
-#else
-/* 9.1 - 9.4 */
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
-#endif
-
-#ifdef HAS_PSTMT
-/* 10 & up */
-static void PU_hook(PlannedStmt *pstmt, const char *queryString,
-					ProcessUtilityContext context, ParamListInfo params,
-					QueryEnvironment *queryEnv,
-					DestReceiver *dest, char *completionTag);
-#else
-/* < 10 */
-#ifdef HAS_PROCESSUTILITYCONTEXT
-/* 9.3 - 9.6 */
-static void PU_hook(Node *parsetree, const char *queryString,
-					ProcessUtilityContext context, ParamListInfo params,
-					DestReceiver *dest, char *completionTag);
-#else
-/* 9.1 - 9.2 */
-static void PU_hook(Node *parsetree, const char *queryString,
-					ParamListInfo params, bool isTopLevel,
-					DestReceiver *dest, char *completionTag);
-#endif
-#endif
 
 static void PostSetUserHook(bool is_reset, const char *newuser);
 
@@ -351,12 +259,7 @@ set_user(PG_FUNCTION_ARGS)
 		if (!HeapTupleIsValid(roleTup))
 			elog(ERROR, "role \"%s\" does not exist", newuser);
 
-/* OID column is removed in PG12 */
-#if PG_VERSION_NUM >= 120000
-		NewUserId = ((Form_pg_authid) GETSTRUCT(roleTup))->oid;
-#else
-		NewUserId = HeapTupleGetOid(roleTup);
-#endif
+		NewUserId = _heap_tuple_get_oid(roleTup);
 		NewUser_is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 		ReleaseSysCache(roleTup);
 
@@ -479,21 +382,15 @@ set_user(PG_FUNCTION_ARGS)
 void
 _PG_init(void)
 {
-#ifdef HAS_ALTER_SYSTEM
-/* 9.4 & up */
 	DefineCustomBoolVariable("set_user.block_alter_system",
 							 "Block ALTER SYSTEM commands",
 							 NULL, &Block_AS, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
-#endif
 
-#ifdef HAS_COPY_PROGRAM
-/* 9.3 & up */
 	DefineCustomBoolVariable("set_user.block_copy_program",
 							 "Blocks COPY PROGRAM commands",
 							 NULL, &Block_CP, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
-#endif
 
 	DefineCustomBoolVariable("set_user.block_log_statement",
 							 "Blocks \"SET log_statement\" commands",
@@ -525,58 +422,30 @@ _PG_fini(void)
 	ProcessUtility_hook = prev_hook;
 }
 
-#ifdef HAS_PSTMT
-/* 10 & up */
-static void PU_hook(PlannedStmt *pstmt, const char *queryString,
-					ProcessUtilityContext context, ParamListInfo params,
-					QueryEnvironment *queryEnv,
-					DestReceiver *dest, char *completionTag)
-#else
-/* < 10 */
-#ifdef HAS_PROCESSUTILITYCONTEXT
-/* 9.3 - 9.6 */
-static void
-PU_hook(Node *parsetree, const char *queryString,
-		ProcessUtilityContext context, ParamListInfo params,
-		DestReceiver *dest, char *completionTag)
-#else
-/* 9.1 - 9.2 */
-static void
-PU_hook(Node *parsetree, const char *queryString,
-		ParamListInfo params, bool isTopLevel,
-		DestReceiver *dest, char *completionTag)
-#endif
-#endif
+/*
+ * _PU_HOOK
+ *
+ * Compatibility shim for PU_hook. Handles changing function signature between versions of PostgreSQL.
+ */
+_PU_HOOK
 {
-
-#ifdef HAS_PSTMT
-	Node	   *parsetree = pstmt->utilityStmt;
-#endif
 	/* if set_user has been used to transition, enforce set_user GUCs */
 	if (save_OldUserId != InvalidOid)
 	{
 		switch (nodeTag(parsetree))
 		{
-#ifdef HAS_ALTER_SYSTEM
-/* 9.4 & up */
 			case T_AlterSystemStmt:
 				if (Block_AS)
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("ALTER SYSTEM blocked by set_user config")));
 				break;
-#endif
-
-#ifdef HAS_COPY_PROGRAM
-/* 9.3 & up */
 			case T_CopyStmt:
 				if (((CopyStmt *) parsetree)->is_program && Block_CP)
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("COPY PROGRAM blocked by set_user config")));
 				break;
-#endif
-
 			case T_VariableSetStmt:
 				if ((strcmp(((VariableSetStmt *) parsetree)->name,
 					 "log_statement") == 0) &&
@@ -611,38 +480,17 @@ PU_hook(Node *parsetree, const char *queryString,
 	/*
 	 * Now pass-off handling either to the previous ProcessUtility hook
 	 * or to the standard ProcessUtility.
+	 *
+	 * These functions are also called by their compatibility variants.
 	 */
-#ifdef HAS_PSTMT
-/* 10 & up */
 	if (prev_hook)
-		prev_hook(pstmt, queryString, context, params,
-				  queryEnv, dest, completionTag);
+	{
+		_prev_hook;
+	}
 	else
-		standard_ProcessUtility(pstmt, queryString,
-								context, params, queryEnv,
-								dest, completionTag);
-#else
-/* < 10 */
-#ifdef HAS_PROCESSUTILITYCONTEXT
-/* 9.3 & up */
-	if (prev_hook)
-		prev_hook(parsetree, queryString, context,
-				  params, dest, completionTag);
-	else
-		standard_ProcessUtility(parsetree, queryString,
-								context, params,
-								dest, completionTag);
-#else
-/* 9.1 - 9.2 */
-	if (prev_hook)
-		prev_hook(parsetree, queryString, params,
-		isTopLevel, dest, completionTag);
-	else
-		standard_ProcessUtility(parsetree, queryString,
-								params, isTopLevel,
-								dest, completionTag);
-#endif
-#endif
+	{
+		_standard_ProcessUtility;
+	}
 }
 
 /*
