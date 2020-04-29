@@ -246,10 +246,7 @@ variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
 
-Although this extension compiles and works with all supported versions of
-PostgreSQL starting with PostgreSQL 9.1, all features are not supported until
-PostgreSQL 9.4 or higher. The ALTER SYSTEM command does not exist prior to 9.4
-and COPY PROGRAM does not exist prior to 9.3.
+This extension supports PostgreSQL versions 9.4 and higher.
 
 ##  Post-Execution Hooks
 
@@ -306,7 +303,7 @@ memory before their implementations can access them.
 
 ### Requirements
 
-* PostgreSQL 9.1 or higher.
+* PostgreSQL 9.4 or higher.
 
 ### Compile and Install
 
