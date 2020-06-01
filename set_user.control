@@ -2,4 +2,4 @@
 comment = 'similar to SET ROLE but with added logging'
 default_version = '1.6'
 module_pathname = '$libdir/set_user'
-relocatable = true
+relocatable = false

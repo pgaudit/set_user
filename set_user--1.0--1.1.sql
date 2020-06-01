@@ -1,5 +1,7 @@
 /* set-user-1.0--1.1.sql */
 
+SET LOCAL search_path to @extschema@;
+
 -- complain if script is sourced in psql, rather than via ALTER EXTENSION
 \echo Use "ALTER EXTENSION set_user UPDATE to '1.1'" to load this file. \quit
 
