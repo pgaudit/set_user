@@ -705,13 +705,16 @@ OR
 (0 rows)
 ```
 
-## TODO
+## NOTES
 
-The following changes/enhancements are contemplated:
+### Version 2.0.0
 
-* Improve regression tests
-* Add ability to create dependencies in `shared_preload_libraries` such that
-  extension order does not matter.
+- Use of GUCs with `whitelist` have been deprecated in lieu of a more
+  appropriate `allowlist`. The last GUC set by `ALTER SYSTEM` will be used on
+  reload, the first attempt to `SHOW` a deprecated variable will provide a
+  NOTICE.
+
+- The extension is now non-relocatable and all functions are schema-qualified.
 
 ##  Licensing
 
