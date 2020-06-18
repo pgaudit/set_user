@@ -25,12 +25,12 @@ again for reset.
   * set_user.block_alter_system = off (defaults to "on")
   * set_user.block_copy_program = off (defaults to "on")
   * set_user.block_log_statement = off (defaults to "on")
-  * set_user.superuser_whitelist = `'<role list>'`
+  * set_user.superuser_allowlist = `'<role list>'`
     * `<role list>` can contain any of the following:
       * list of user roles (i.e. `<role1>, <role2>,...,<roleN>`)
       * Group roles may be indicated by `+<roleN>`
       * The wildcard character `*`
-  * set_user.nosuperuser_target_whitelist = `'<role list>'`
+  * set_user.nosuperuser_target_allowlist = `'<role list>'`
     * `<role list>` can contain any of the following:
       * list of user roles (i.e. `<role1>, <role2>,...,<roleN>`)
       * Group roles may be indicated by `+<roleN>`
@@ -70,13 +70,13 @@ Specifically, when an allowed user executes `set_user(text)` or
 
 Only users with `EXECUTE` permission on `set_user_u(text)` may escalate to
 superuser. Additionally, all rules in [Superuser
-Whitelist](#set_usersuperuser_whitelist-rules-and-logic)
-apply to `set_user.superuser_whitelist` and `set_user_u(text)`.
+Allowlist](#set_usersuperuser_allowlist-rules-and-logic)
+apply to `set_user.superuser_allowlist` and `set_user_u(text)`.
 
 Postgres roles calling `set_user(text)` can only transition to roles listed or
-included in `set_user.nosuperuser_target_whitelist` (defaults to all roles).
+included in `set_user.nosuperuser_target_allowlist` (defaults to all roles).
 Additionally the logic in [Nosuperuser
-Whitelist](#set_usernosuperuser_target_whitelist-rules-and-logic) applies to
+Allowlist](#set_usernosuperuser_target_allowlist-rules-and-logic) applies to
 `current_user` when `set_user()` is invoked.
 
 Additionally, with `set_user('rolename','token')` the `token` is stored for the
@@ -143,9 +143,9 @@ SELECT set_user_u('postgres');
 ```
 
 **Note:** See rules in [Superuser
-Whitelist](#set_usersuperuser_whitelist-rules-and-logic)
+Allowlist](#set_usersuperuser_allowlist-rules-and-logic)
 for logic around calling `set_user_u(text)`. See [Nosuperuser
-Whitelist](#set_usernosuperuser_target_whitelist-rules-and-logic) for reference
+Allowlist](#set_usernosuperuser_target_allowlist-rules-and-logic) for reference
 logic around calling `set_user(text)`.
 
 Once one or more unprivileged users are able to run `set_user_u()` in order to
@@ -158,7 +158,7 @@ to ensure there are no other PostgreSQL roles existing which are both superuser
 and can log in. Additionally there must be no unprivileged PostgreSQL roles
 which have been granted access to one of the existing superuser roles.
 
-#### `set_user.superuser_whitelist` Rules and Logic
+#### `set_user.superuser_allowlist` Rules and Logic
 
 The following rules govern escalation to superuser via the `set_user_u(text)`
 function:
@@ -166,17 +166,17 @@ function:
 * `current_user` must be `GRANT`ed `EXECUTE ON FUNCTION set_user_u(text)` OR
   `current_user` must be the `OWNER` of the `set_user_u(text)` function OR
   `current_user` must be a superuser.
-* `current_user` must be listed in `set_user.superuser_whitelist` OR
+* `current_user` must be listed in `set_user.superuser_allowlist` OR
   `current_user` must belong to a group that is listed in
-  `set_user.superuser_whitelist` (e.g. `'+admin'`)
-* If `set_user.superuser_whitelist` is the empty set , `''`, superuser
+  `set_user.superuser_allowlist` (e.g. `'+admin'`)
+* If `set_user.superuser_allowlist` is the empty set , `''`, superuser
   escalation is blocked for all users.
-* If `set_user.superuser_whitelist` is the wildcard character, `'*'`, all users
+* If `set_user.superuser_allowlist` is the wildcard character, `'*'`, all users
   with `EXECUTE` permission on `set_user_u(text)` can escalate to superuser.
-* If `set_user.superuser_whitelist` is not specified, the value defaults to the
+* If `set_user.superuser_allowlist` is not specified, the value defaults to the
   wildcard character, `'*'`.
 
-#### `set_user.nosuperuser_target_whitelist` Rules and Logic
+#### `set_user.nosuperuser_target_allowlist` Rules and Logic
 
 The following rules govern non-superuser role transitions through use of
   `set_user(text)` or `set_user(text, text)` function (for simplicity, only
@@ -185,15 +185,15 @@ The following rules govern non-superuser role transitions through use of
 * `current_user` must be `GRANT`ed `EXECUTE ON FUNCTION set_user(text)` OR
   `current_user` must be the `OWNER` of the `set_user(text)` function OR
   `current_user` must be a superuser.
-* The target rolename must be listed in `set_user.nosuperuser_target_whitelist`
+* The target rolename must be listed in `set_user.nosuperuser_target_allowlist`
   OR the target rolename must belong to a group that is listed in
-  `set_user.nosuperuser_target_whitelist` (e.g. `'+client'`)
-* If `set_user.nosuperuser_target_whitelist` is the empty set , `''`,
+  `set_user.nosuperuser_target_allowlist` (e.g. `'+client'`)
+* If `set_user.nosuperuser_target_allowlist` is the empty set , `''`,
   `set_user(text)` transitions to non-superusers are blocked for all users.
-* If `set_user.nosuperuser_target_whitelist` is the wildcard character, `'*'`,
+* If `set_user.nosuperuser_target_allowlist` is the wildcard character, `'*'`,
   all users with `EXECUTE` permission on `set_user(text)` can transition to any
   other non-superuser role.
-* If `set_user.nosuperuser_target_whitelist` is not specified, the value
+* If `set_user.nosuperuser_target_allowlist` is not specified, the value
   defaults to the wildcard character, `'*'`.
 
 #### Perform Actions With Enhanced Logging
@@ -405,8 +405,8 @@ shared_preload_libraries = 'set_user'
 set_user.block_alter_system = off       #defaults to "on"
 set_user.block_copy_program = off       #defaults to "on"
 set_user.block_log_statement = off      #defaults to "on"
-set_user.superuser_whitelist = ''       #defaults to '*'
-set_user.nosuperuser_target_whitelist = ''       #defaults to '*'
+set_user.superuser_allowlist = ''       #defaults to '*'
+set_user.nosuperuser_target_allowlist = ''       #defaults to '*'
 ```
 
 Finally, restart PostgreSQL (method may vary):
@@ -504,9 +504,9 @@ extension_post_reset_user(void)
 * Block `SET log_statement` commands
   * `set_user.block_log_statement = on`
 * Allow list of roles to escalate to superuser
-  * `set_user.superuser_whitelist = '<role1>,<role2>,...,<roleN>'`
+  * `set_user.superuser_allowlist = '<role1>,<role2>,...,<roleN>'`
 * Allowed list of roles that can be switched to (not used in set_user_u)
-  * `set_user.nosuperuser_target_whitelist = '<role1>,<role2>,...,<roleN>'`
+  * `set_user.nosuperuser_target_allowlist = '<role1>,<role2>,...,<roleN>'`
 
 
 ## Examples
