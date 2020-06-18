@@ -25,6 +25,10 @@ GRANT newbs TO bob;
 GRANT su TO joe;
 GRANT postgres TO su;
 
+-- show deprecated variables
+SHOW set_user.superuser_whitelist;
+SHOW set_user.nosuperuser_target_whitelist;
+
 -- test set_user
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;

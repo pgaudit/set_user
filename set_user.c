@@ -50,7 +50,7 @@ PG_MODULE_MAGIC;
 
 #include "compatibility.h"
 
-#define WHITELIST_WILDCARD	"*"
+#define ALLOWLIST_WILDCARD	"*"
 #define SUPERUSER_AUDIT_TAG	"AUDIT"
 
 static char *save_log_statement = NULL;
@@ -61,8 +61,8 @@ static ProcessUtility_hook_type prev_hook = NULL;
 static bool Block_AS = false;
 static bool Block_CP = false;
 static bool Block_LS = false;
-static char *SU_Whitelist = NULL;
-static char *NOSU_TargetWhitelist = NULL;
+static char *SU_Allowlist = NULL;
+static char *NOSU_TargetAllowlist = NULL;
 static char *SU_AuditTag = NULL;
 
 static void PostSetUserHook(bool is_reset, const char *newuser);
@@ -71,24 +71,27 @@ extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
 void _PG_fini(void);
 
+DEPRECATED_VARIABLE_NAME(superuser_whitelist, superuser_allowlist, SU_Allowlist)
+DEPRECATED_VARIABLE_NAME(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetAllowlist)
+
 /*
- * check_user_whitelist
+ * check_user_allowlist
  *
- * Check if user is contained by whitelist
+ * Check if user is contained by allowlist
  *
  */
 static bool
-check_user_whitelist(Oid userId, const char *whitelist)
+check_user_allowlist(Oid userId, const char *allowlist)
 {
 	char	   *rawstring = NULL;
 	List	   *elemlist;
 	ListCell   *l;
 	bool		result = false;
 
-	if (whitelist == NULL || whitelist[0] == '\0')
+	if (allowlist == NULL || allowlist[0] == '\0')
 		return false;
 
-	rawstring = pstrdup(whitelist);
+	rawstring = pstrdup(allowlist);
 
 	/* Parse string into list of identifiers */
 	if (!SplitIdentifierString(rawstring, ',', &elemlist))
@@ -99,19 +102,19 @@ check_user_whitelist(Oid userId, const char *whitelist)
 				 errmsg("invalid syntax in parameter")));
 	}
 
-	/* Allow all users to escalate if whitelist is a solo wildcard character. */
+	/* Allow all users to escalate if allowlist is a solo wildcard character. */
 	if (list_length(elemlist) == 1)
 	{
 		char	   *first_elem = NULL;
 
 		first_elem = (char *) linitial(elemlist);
-		if (pg_strcasecmp(first_elem, WHITELIST_WILDCARD) == 0)
+		if (pg_strcasecmp(first_elem, ALLOWLIST_WILDCARD) == 0)
 			return true;
 	}
 
 	/*
-	 * Check whole whitelist to see if it contains the current username and no
-	 * wildcard character. Throw an error if the whitelist contains both.
+	 * Check whole allowlist to see if it contains the current username and no
+	 * wildcard character. Throw an error if the allowlist contains both.
 	 */
 	foreach(l, elemlist)
 	{
@@ -124,22 +127,22 @@ check_user_whitelist(Oid userId, const char *whitelist)
 			if (!OidIsValid(roleId))
 				result = false;
 
-			/* Check to see if userId is contained by group role in whitelist */
+			/* Check to see if userId is contained by group role in allowlist */
 			result = has_privs_of_role(userId, roleId);
 		}
 		else
 		{
 			if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
 				result = true;
-			else if(pg_strcasecmp(elem, WHITELIST_WILDCARD) == 0)
+			else if(pg_strcasecmp(elem, ALLOWLIST_WILDCARD) == 0)
 				/* No explicit usernames intermingled with wildcard. */
 				ereport(ERROR,
 						(errcode(ERRCODE_SYNTAX_ERROR),
 						 errmsg("invalid syntax in parameter"),
-						 errhint("Either remove users from set_user.superuser_whitelist "
-								 "or remove the wildcard character \"%s\". The whitelist "
+						 errhint("Either remove users from set_user.superuser_allowlist "
+								 "or remove the wildcard character \"%s\". The allowlist "
 								 "cannot contain both.",
-								 WHITELIST_WILDCARD)));
+								 ALLOWLIST_WILDCARD)));
 		}
 	}
 	return result;
@@ -271,19 +274,19 @@ set_user(PG_FUNCTION_ARGS)
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 						 errmsg("switching to superuser not allowed"),
 						 errhint("Use \'set_user_u\' to escalate.")));
-			else if (!check_user_whitelist(GetUserId(), SU_Whitelist))
-				/* check superuser whitelist*/
+			else if (!check_user_allowlist(GetUserId(), SU_Allowlist))
+				/* check superuser allowlist*/
 				ereport(ERROR,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 						 errmsg("switching to superuser not allowed"),
-						 errhint("Add current user to set_user.superuser_whitelist.")));
+						 errhint("Add current user to set_user.superuser_allowlist.")));
 		}
-		else if(!check_user_whitelist(NewUserId, NOSU_TargetWhitelist))
+		else if(!check_user_allowlist(NewUserId, NOSU_TargetAllowlist))
 		{
 			ereport(ERROR,
 					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 					 errmsg("switching to role is not allowed"),
-					 errhint("Add target role to set_user.nosuperuser_target_whitelist.")));
+					 errhint("Add target role to set_user.nosuperuser_target_allowlist.")));
 		}
 
 		/* keep track of original userid and value of log_statement */
@@ -397,20 +400,30 @@ _PG_init(void)
 							 NULL, &Block_LS, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
-	DefineCustomStringVariable("set_user.nosuperuser_target_whitelist",
+	DEFINE_DEPRECATED_GUC(nosuperuser_target_whitelist,
+				nosuperuser_target_allowlist,
+				NOSU_TargetAllowlist)
+
+	DEFINE_DEPRECATED_GUC(superuser_whitelist,
+				superuser_allowlist,
+				SU_Allowlist)
+
+	DefineCustomStringVariable("set_user.nosuperuser_target_allowlist",
 							 "List of roles that can be an argument to set_user",
-							 NULL, &NOSU_TargetWhitelist, WHITELIST_WILDCARD, PGC_SIGHUP,
+							 NULL, &NOSU_TargetAllowlist, ALLOWLIST_WILDCARD, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
-	DefineCustomStringVariable("set_user.superuser_whitelist",
+	DefineCustomStringVariable("set_user.superuser_allowlist",
 							 "Allows a list of users to use set_user_u for superuser escalation",
-							 NULL, &SU_Whitelist, WHITELIST_WILDCARD, PGC_SIGHUP,
+							 NULL, &SU_Allowlist, ALLOWLIST_WILDCARD, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
 	DefineCustomStringVariable("set_user.superuser_audit_tag",
 							 "Set custom tag for superuser audit escalation",
 							 NULL, &SU_AuditTag, SUPERUSER_AUDIT_TAG, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
+	
+
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
 	ProcessUtility_hook = PU_hook;
