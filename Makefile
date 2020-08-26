@@ -24,9 +24,10 @@ endif
 install: install-headers
 
 install-headers:
-	$(INSTALL_DATA) "set_user.h" $(includedir)
+	$(MKDIR_P) "$(DESTDIR)$(includedir)"
+	$(INSTALL_DATA) "set_user.h" "$(DESTDIR)$(includedir)"
 
 uninstall: uninstall-headers
 
 uninstall-headers:
-	rm "$(includedir)/set_user.h"
+	rm "$(DESTDIR)$(includedir)/set_user.h"
