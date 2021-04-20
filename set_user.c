@@ -484,6 +484,14 @@ _PU_HOOK
 							 errmsg("\"RESET user\" blocked by set_user"),
 							 errhint("\"Use `SELECT reset_user();` to reset user\"")));
 				}
+				else if ((strcmp(((VariableSetStmt *) parsetree)->name,
+					 "session_authorization") == 0))
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("\"RESET SESSION AUTHORIZATION\" blocked by set_user"),
+							 errhint("\"Use `SELECT reset_user();` to reset role\"")));
+				}
 				break;
 			default:
 				break;

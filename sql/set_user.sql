@@ -55,6 +55,7 @@ BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 
 -- test reset_user
 RESET ROLE; -- should fail
+RESET SESSION AUTHORIZATION; -- should fail
 SELECT reset_user();
 SELECT SESSION_USER, CURRENT_USER;
 

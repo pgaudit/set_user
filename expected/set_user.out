@@ -93,6 +93,9 @@ ERROR:  "SET log_statement" blocked by set_user config
 RESET ROLE; -- should fail
 ERROR:  "RESET role" blocked by set_user
 HINT:  "Use `SELECT reset_user();` to reset role"
+RESET SESSION AUTHORIZATION; -- should fail
+ERROR:  "RESET SESSION AUTHORIZATION" blocked by set_user
+HINT:  "Use `SELECT reset_user();` to reset role"
 SELECT reset_user();
  reset_user 
 ------------
