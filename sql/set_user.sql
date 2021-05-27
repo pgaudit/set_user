@@ -41,6 +41,9 @@ SELECT SESSION_USER, CURRENT_USER;
 SELECT set_user_u('postgres');
 SELECT SESSION_USER, CURRENT_USER;
 
+-- test multiple successive set_user calls
+SELECT set_user('joe'); -- fail
+
 -- ALTER SYSTEM should fail
 ALTER SYSTEM SET wal_level = minimal;
 

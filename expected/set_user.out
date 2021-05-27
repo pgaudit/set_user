@@ -74,6 +74,9 @@ SELECT SESSION_USER, CURRENT_USER;
  dba          | postgres
 (1 row)
 
+-- test multiple successive set_user calls
+SELECT set_user('joe'); -- fail
+ERROR:  must reset previous user prior to setting again
 -- ALTER SYSTEM should fail
 ALTER SYSTEM SET wal_level = minimal;
 ERROR:  ALTER SYSTEM blocked by set_user config
