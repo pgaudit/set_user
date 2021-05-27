@@ -8,6 +8,7 @@ set_user(text rolename, text token) returns text
 set_user_u(text rolename) returns text
 reset_user() returns text
 reset_user(text token) returns text
+set_session_auth(text rolename) returns text
 ```
 
 ## Inputs
@@ -35,6 +36,7 @@ again for reset.
       * list of user roles (i.e. `<role1>, <role2>,...,<roleN>`)
       * Group roles may be indicated by `+<roleN>`
       * The wildcard character `*`
+  * set_user.exit_on_error = off (defaults to "on")
 * To make use of the optional `set_user` and `reset_user` hooks, please refer to
   the [hooks](#post-execution-hooks) section.
 
@@ -65,6 +67,8 @@ Specifically, when an allowed user executes `set_user(text)` or
   `log_line_prefix` upon superuser escalation. All logs after superuser
   escalation will be tagged with the value of `set_user.superuser_audit_tag`.
   This value defaults to `'AUDIT'`.
+* If `set_user.exit_on_error` is set to "on", the backend process will exit on
+  ERROR during calls to set_session_auth().
 * [Post-execution hook](#post_set_user_hook)  for `set_user` is called if it is
   set.
 
@@ -97,6 +101,12 @@ called instead of `reset_user()`:
 * The provided `token` is compared with the stored token.
 * If the tokens do not match, or if a `token` was provided to `set_user` but not
   `reset_user`, an ERROR occurs.
+
+When set_session_auth(text) is called, the effective session and current user is
+switched to the rolename supplied, irrevocably. Unlike set_user() or set_user_u(),
+it does not affect logging nor allowed statements. If `set_user.exit_on_error` is
+"on" (the default), and any error occurs during execution, a FATAL error is thrown
+and the backend session exits.
 
 ### `set_user` Usage
 
@@ -238,6 +248,20 @@ PostgreSQL.
 
 Neither `set_user(text)` nor `set_user_u(text)` may be executed from
 within an explicit transaction block.
+
+### `set_session_auth` Usage
+
+Typical use of the `set_session_auth` function is as follows:
+
+#### `GRANT EXECUTE` to Functions
+
+In order to make use of the `set_session_auth` function, some database roles must be
+able to execute the function. Allow these privileges by `GRANT`ing `EXECUTE` on
+the function to their intended users.
+
+```sql
+GRANT EXECUTE ON FUNCTION set_session_auth(text) TO dbclient,dbclient2;
+```
 
 ## Caveats
 
@@ -511,6 +535,7 @@ extension_post_reset_user(void)
 
 ## Examples
 
+set_user() and related:
 ```
 #################################
 # OS command line, terminal 1
@@ -703,6 +728,63 @@ OR
  rolname | roloid | rolcanlogin | rolsuper | rolparents
 ---------+--------+-------------+----------+------------
 (0 rows)
+```
+
+set_session_auth():
+```
+# psql -U postgres test
+psql (13.3)
+Type "help" for help.
+
+test=# grant EXECUTE on FUNCTION set_session_auth(text) to dbclient;
+\q
+
+# psql -U dbclient test
+psql (13.3)
+Type "help" for help.
+
+test=> select session_user, current_user, user, current_role;
+ session_user | current_user |   user   | current_role 
+--------------+--------------+----------+--------------
+ dbclient     | dbclient     | dbclient | dbclient
+(1 row)
+
+test=> select set_session_auth('jeff');
+ set_session_auth 
+------------------
+ OK
+(1 row)
+
+test=> select session_user, current_user, user, current_role;
+ session_user | current_user | user | current_role 
+--------------+--------------+------+--------------
+ jeff         | jeff         | jeff | jeff
+(1 row)
+
+test=> -- the role switch is irrevocable
+test=> reset role;
+RESET
+test=> select session_user, current_user, user, current_role;
+ session_user | current_user | user | current_role 
+--------------+--------------+------+--------------
+ jeff         | jeff         | jeff | jeff
+(1 row)
+
+test=> reset session authorization;
+RESET
+test=> select session_user, current_user, user, current_role;
+ session_user | current_user | user | current_role 
+--------------+--------------+------+--------------
+ jeff         | jeff         | jeff | jeff
+(1 row)
+
+test=> set role none;
+SET
+test=> select session_user, current_user, user, current_role;
+ session_user | current_user | user | current_role 
+--------------+--------------+------+--------------
+ jeff         | jeff         | jeff | jeff
+(1 row)
 ```
 
 ## NOTES
