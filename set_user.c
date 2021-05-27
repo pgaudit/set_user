@@ -1,9 +1,6 @@
 /*
  * set_user.c
  *
- * Similar to SET ROLE but with added logging and some additional
- * control over allowed actions
- *
  * Joe Conway <joe.conway@crunchydata.com>
  *
  * This code is released under the PostgreSQL license.
@@ -64,6 +61,7 @@ static bool Block_LS = false;
 static char *SU_Allowlist = NULL;
 static char *NOSU_TargetAllowlist = NULL;
 static char *SU_AuditTag = NULL;
+static bool exit_on_error = true;
 
 static void PostSetUserHook(bool is_reset, const char *newuser);
 
@@ -148,6 +146,11 @@ check_user_allowlist(Oid userId, const char *allowlist)
 	return result;
 }
 
+/*
+ * Similar to SET ROLE but with added logging and some additional
+ * control over allowed actions
+ *
+ */
 PG_FUNCTION_INFO_V1(set_user);
 Datum
 set_user(PG_FUNCTION_ARGS)
@@ -422,7 +425,11 @@ _PG_init(void)
 							 "Set custom tag for superuser audit escalation",
 							 NULL, &SU_AuditTag, SUPERUSER_AUDIT_TAG, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
-	
+
+	DefineCustomBoolVariable("set_user.exit_on_error",
+							 "Exit backend process on ERROR during set_session_auth()",
+							 NULL, &exit_on_error, true, PGC_SIGHUP,
+							 0, NULL, NULL, NULL);
 
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
@@ -438,7 +445,8 @@ _PG_fini(void)
 /*
  * _PU_HOOK
  *
- * Compatibility shim for PU_hook. Handles changing function signature between versions of PostgreSQL.
+ * Compatibility shim for PU_hook. Handles changing function signature
+ * between versions of PostgreSQL.
  */
 _PU_HOOK
 {
@@ -534,3 +542,49 @@ PostSetUserHook(bool is_reset, const char *username)
 		}
 	}
 }
+
+/*
+ * Similar to SET SESSION AUTHORIZATION, except:
+ * 
+ * 1. does not require superuser (GRANTable)
+ * 2. does not allow switching to a superuser
+ * 3. does not allow reset/switching back
+ * 4. Can be configured to throw FATAL/exit for all ERRORs
+ */
+PG_FUNCTION_INFO_V1(set_session_auth);
+Datum
+set_session_auth(PG_FUNCTION_ARGS)
+{
+	char		   *newuser = text_to_cstring(PG_GETARG_TEXT_PP(0));
+	HeapTuple		roleTup;
+	bool			NewUser_is_superuser = false;
+
+	if (exit_on_error)
+		/* We want to hard exit on *any* ERROR */
+		ExitOnAnyError = true;
+
+#ifdef USE_ASSERT_CHECKING
+	elog(ERROR, "Assert build disables set_session_auth()");
+#else
+	/* Look up the username */
+	roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(newuser));
+	if (!HeapTupleIsValid(roleTup))
+		elog(ERROR, "role \"%s\" does not exist", newuser);
+
+	NewUser_is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
+	ReleaseSysCache(roleTup);
+
+	/* cannot escalate to superuser */
+	if (NewUser_is_superuser)
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("switching to superuser not allowed"),
+				 errhint("Use \'set_user_u\' to escalate.")));
+
+	InitializeSessionUserId(newuser, InvalidOid);
+#endif
+
+	ExitOnAnyError = false;
+	PG_RETURN_TEXT_P(cstring_to_text("OK"));
+}
+	
