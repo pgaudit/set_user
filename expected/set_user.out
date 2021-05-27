@@ -91,21 +91,21 @@ BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 ERROR:  "SET log_statement" blocked by set_user config
 -- test reset_user
 RESET ROLE; -- should fail
-ERROR:  "RESET role" blocked by set_user
-HINT:  "Use `SELECT reset_user();` to reset role"
+ERROR:  "SET/RESET ROLE" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 RESET SESSION AUTHORIZATION; -- should fail
-ERROR:  "RESET SESSION AUTHORIZATION" blocked by set_user
-HINT:  "Use `SELECT reset_user();` to reset role"
-SELECT reset_user();
- reset_user 
-------------
- OK
-(1 row)
-
+ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
- dba          | dba
+ dba          | postgres
+(1 row)
+
+SELECT reset_user();  -- succeed
+ reset_user 
+------------
+ OK
 (1 row)
 
 -- test set_user and reset_user with token
@@ -128,8 +128,17 @@ SELECT SESSION_USER, CURRENT_USER;
 (1 row)
 
 RESET ROLE; -- should fail
-ERROR:  "RESET role" blocked by set_user
-HINT:  "Use `SELECT reset_user();` to reset role"
+ERROR:  "SET/RESET ROLE" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+RESET SESSION AUTHORIZATION; -- should fail
+ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | bob
+(1 row)
+
 SELECT reset_user(); -- should fail
 ERROR:  reset token required but not provided
 SELECT SESSION_USER, CURRENT_USER;
