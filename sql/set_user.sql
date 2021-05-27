@@ -56,14 +56,17 @@ BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 -- test reset_user
 RESET ROLE; -- should fail
 RESET SESSION AUTHORIZATION; -- should fail
-SELECT reset_user();
 SELECT SESSION_USER, CURRENT_USER;
+
+SELECT reset_user();  -- succeed
 
 -- test set_user and reset_user with token
 SELECT SESSION_USER, CURRENT_USER;
 SELECT set_user('bob', 'secret');
 SELECT SESSION_USER, CURRENT_USER;
 RESET ROLE; -- should fail
+RESET SESSION AUTHORIZATION; -- should fail
+SELECT SESSION_USER, CURRENT_USER;
 
 SELECT reset_user(); -- should fail
 SELECT SESSION_USER, CURRENT_USER;
