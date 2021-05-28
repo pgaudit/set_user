@@ -1,6 +1,7 @@
 # Derived objects
 set_user.o
 set_user.so
+results
 
 # Generated documentation
 *.pdf
