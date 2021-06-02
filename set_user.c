@@ -49,6 +49,7 @@
 PG_MODULE_MAGIC;
 
 #include "compatibility.h"
+#include "deprecated_gucs.h"
 
 #define ALLOWLIST_WILDCARD	"*"
 #define SUPERUSER_AUDIT_TAG	"AUDIT"
@@ -71,8 +72,8 @@ extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
 void _PG_fini(void);
 
-DEPRECATED_VARIABLE_NAME(superuser_whitelist, superuser_allowlist, SU_Allowlist)
-DEPRECATED_VARIABLE_NAME(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetAllowlist)
+DEPRECATED_GUC(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetWhitelist, NOSU_TargetAllowlist)
+DEPRECATED_GUC(superuser_whitelist, superuser_allowlist, SU_Whitelist, SU_Allowlist)
 
 /*
  * check_user_allowlist
@@ -400,14 +401,6 @@ _PG_init(void)
 							 NULL, &Block_LS, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 
-	DEFINE_DEPRECATED_GUC(nosuperuser_target_whitelist,
-				nosuperuser_target_allowlist,
-				NOSU_TargetAllowlist)
-
-	DEFINE_DEPRECATED_GUC(superuser_whitelist,
-				superuser_allowlist,
-				SU_Allowlist)
-
 	DefineCustomStringVariable("set_user.nosuperuser_target_allowlist",
 							 "List of roles that can be an argument to set_user",
 							 NULL, &NOSU_TargetAllowlist, ALLOWLIST_WILDCARD, PGC_SIGHUP,
@@ -423,6 +416,8 @@ _PG_init(void)
 							 NULL, &SU_AuditTag, SUPERUSER_AUDIT_TAG, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 	
+	DefineDeprecatedStringVariable(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetWhitelist, NOSU_TargetAllowlist);
+	DefineDeprecatedStringVariable(superuser_whitelist, superuser_allowlist, SU_Whitelist, SU_Allowlist);
 
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;

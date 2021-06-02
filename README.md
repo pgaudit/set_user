@@ -707,6 +707,12 @@ OR
 
 ## NOTES
 
+### Version 2.0.1
+
+- NOTICE fixed to only display on first reference to non-default deprecated
+  variable.
+- Deprecated GUCs are removed from `SHOW ALL`.
+
 ### Version 2.0.0
 
 - Use of GUCs with `whitelist` have been deprecated in lieu of a more
