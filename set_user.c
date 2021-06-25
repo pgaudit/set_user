@@ -556,6 +556,9 @@ set_session_auth(PG_FUNCTION_ARGS)
 	HeapTuple		roleTup;
 	bool			NewUser_is_superuser = false;
 #endif
+
+	bool orig_exit_on_err = ExitOnAnyError;
+
 	if (exit_on_error)
 		/* We want to hard exit on *any* ERROR */
 		ExitOnAnyError = true;
@@ -581,7 +584,7 @@ set_session_auth(PG_FUNCTION_ARGS)
 	InitializeSessionUserId(newuser, InvalidOid);
 #endif
 
-	ExitOnAnyError = false;
+	ExitOnAnyError = orig_exit_on_err;
 	PG_RETURN_TEXT_P(cstring_to_text("OK"));
 }
 	
