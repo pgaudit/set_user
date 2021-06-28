@@ -44,6 +44,8 @@ REVOKE EXECUTE ON FUNCTION @extschema@.set_user_u(text) FROM PUBLIC;
 /* No new sql functions for 1.6 */
 /* No new sql functions for 2.0 */
 
+/* New functions in 3.0 begin here */
+
 CREATE FUNCTION @extschema@.set_session_auth(text)
 RETURNS text
 AS 'MODULE_PATHNAME', 'set_session_auth'
