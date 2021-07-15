@@ -551,21 +551,14 @@ PG_FUNCTION_INFO_V1(set_session_auth);
 Datum
 set_session_auth(PG_FUNCTION_ARGS)
 {
-#if defined(NO_ASSERT_AUTH_UID_ONCE)
+	bool orig_exit_on_err = ExitOnAnyError;
+#if NO_ASSERT_AUTH_UID_ONCE
 	char		   *newuser = text_to_cstring(PG_GETARG_TEXT_PP(0));
 	HeapTuple		roleTup;
 	bool			NewUser_is_superuser = false;
-#endif
 
-	bool orig_exit_on_err = ExitOnAnyError;
+	ExitOnAnyError = exit_on_error;
 
-	if (exit_on_error)
-		/* We want to hard exit on *any* ERROR */
-		ExitOnAnyError = true;
-
-#if defined(USE_ASSERT_CHECKING) && !defined(NO_ASSERT_AUTH_UID_ONCE)
-	elog(ERROR, "Assert build disables set_session_auth()");
-#else
 	/* Look up the username */
 	roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(newuser));
 	if (!HeapTupleIsValid(roleTup))
@@ -582,6 +575,9 @@ set_session_auth(PG_FUNCTION_ARGS)
 				 errhint("Use \'set_user_u\' to escalate.")));
 
 	InitializeSessionUserId(newuser, InvalidOid);
+#else
+	ExitOnAnyError = exit_on_error;
+	elog(ERROR, "Assert build disables set_session_auth()");
 #endif
 
 	ExitOnAnyError = orig_exit_on_err;

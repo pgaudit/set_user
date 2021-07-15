@@ -12,6 +12,10 @@
 #ifndef SET_USER_COMPAT_H
 #define SET_USER_COMPAT_H
 
+#ifndef NO_ASSERT_AUTH_UID_ONCE
+#define NO_ASSERT_AUTH_UID_ONCE !USE_ASSERT_CHECKING
+#endif
+
 /*
  * PostgreSQL version 13+
  *
