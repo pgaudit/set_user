@@ -565,7 +565,7 @@ set_session_auth(PG_FUNCTION_ARGS)
 
 #if defined(USE_ASSERT_CHECKING) && !defined(NO_ASSERT_AUTH_UID_ONCE)
 	elog(ERROR, "Assert build disables set_session_auth()");
-#else
+#elif defined(NO_ASSERT_AUTH_UID_ONCE)
 	/* Look up the username */
 	roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(newuser));
 	if (!HeapTupleIsValid(roleTup))
