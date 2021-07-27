@@ -17,12 +17,32 @@
  *
  * Introduces QueryCompletion struct
  */
-#if PG_VERSION_NUM >= 130000
+#if PG_VERSION_NUM >= 140000
 
-static void PU_hook(PlannedStmt *pstmt, const char *queryString,
+static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool readOnlyTree,
 					ProcessUtilityContext context, ParamListInfo params,
 					QueryEnvironment *queryEnv,
 					DestReceiver *dest, QueryCompletion *qc);
+
+#define _PU_HOOK \
+        static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool readOnlyTree, \
+                                                ProcessUtilityContext context, ParamListInfo params, \
+                                                QueryEnvironment *queryEnv, \
+                                                DestReceiver *dest, QueryCompletion *qc)
+
+#define _prev_hook \
+        prev_hook(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, qc)
+
+#define _standard_ProcessUtility \
+        standard_ProcessUtility(pstmt, queryString, readOnlyTree, context, params, queryEnv, dest, qc)
+
+#elif PG_VERSION_NUM >= 130000 && PG_VERSION_NUM < 140000
+
+static void PU_hook(PlannedStmt *pstmt, const char *queryString,
+                                        ProcessUtilityContext context, ParamListInfo params,
+                                        QueryEnvironment *queryEnv,
+                                        DestReceiver *dest, QueryCompletion *qc);
+
 #define _PU_HOOK \
 	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
 						ProcessUtilityContext context, ParamListInfo params, \
