@@ -17,12 +17,36 @@
 #endif
 
 /*
+ * PostgreSQL version 14+
+ *
+ * Introduces ReadOnlyTree boolean
+ */
+#if PG_VERSION_NUM >= 140000
+static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
+					ProcessUtilityContext context, ParamListInfo params,
+					QueryEnvironment *queryEnv,
+					DestReceiver *dest, QueryCompletion *qc);
+#define _PU_HOOK \
+	static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree, \
+						ProcessUtilityContext context, ParamListInfo params, \
+						QueryEnvironment *queryEnv, \
+						DestReceiver *dest, QueryCompletion *qc)
+
+#define _prev_hook \
+	prev_hook(pstmt, queryString, ReadOnlyTree, context, params, queryEnv, dest, qc)
+
+#define _standard_ProcessUtility \
+	standard_ProcessUtility(pstmt, queryString, ReadOnlyTree, context, params, queryEnv, dest, qc)
+
+#endif /* 14+ */
+
+/*
  * PostgreSQL version 13+
  *
  * Introduces QueryCompletion struct
  */
 #if PG_VERSION_NUM >= 130000
-
+#ifndef _PU_HOOK
 static void PU_hook(PlannedStmt *pstmt, const char *queryString,
 					ProcessUtilityContext context, ParamListInfo params,
 					QueryEnvironment *queryEnv,
@@ -38,6 +62,7 @@ static void PU_hook(PlannedStmt *pstmt, const char *queryString,
 
 #define _standard_ProcessUtility \
 	standard_ProcessUtility(pstmt, queryString,	context, params, queryEnv, dest, qc)
+#endif
 
 #endif /* 13+ */
 
