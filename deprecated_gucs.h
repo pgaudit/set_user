@@ -17,7 +17,6 @@
  */
 #include "miscadmin.h"
 #include "utils/guc.h"
-#include "utils/varlena.h"
 
 static bool
 check_set_user_list(char **newval, void **extra, GucSource source,
