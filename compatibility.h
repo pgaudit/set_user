@@ -80,7 +80,7 @@ _heap_tuple_get_oid(HeapTuple roleTup)
  * - Introduces varlena.h
  */
 #if PG_VERSION_NUM >= 100000
-# ifndef _PU_HOOK
+#ifndef _PU_HOOK
 #define _PU_HOOK \
 	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
 						ProcessUtilityContext context, ParamListInfo params, \
@@ -93,7 +93,7 @@ _heap_tuple_get_oid(HeapTuple roleTup)
 #define _standard_ProcessUtility \
 	standard_ProcessUtility(pstmt, queryString, context, params, queryEnv, dest, completionTag)
 
-# endif
+#endif
 
 #include "utils/varlena.h"
 #define parsetree ((Node *) pstmt->utilityStmt)
@@ -115,7 +115,7 @@ _heap_tuple_get_oid(HeapTuple roleTup)
  * Lowest supported version.
  */
 #if PG_VERSION_NUM >= 90400
-# ifndef _PU_HOOK
+#ifndef _PU_HOOK
 #define _PU_HOOK \
 	static void PU_hook(Node *parsetree, const char *queryString, \
 						ProcessUtilityContext context, ParamListInfo params, \
@@ -126,11 +126,11 @@ _heap_tuple_get_oid(HeapTuple roleTup)
 
 #define _standard_ProcessUtility \
 	standard_ProcessUtility(parsetree, queryString, context, params, dest, completionTag)
-# endif
+#endif
 
-# ifndef GETUSERNAMEFROMID
+#ifndef GETUSERNAMEFROMID
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid)
-# endif
+#endif
 
 # ifndef HEAP_TUPLE_GET_OID
 static inline Oid
