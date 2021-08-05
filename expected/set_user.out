@@ -20,23 +20,6 @@ GRANT newbs TO bob;
 -- joe will be able to escalate without set_user() via su
 GRANT su TO joe;
 GRANT postgres TO su;
--- show deprecated variables
-SHOW set_user.superuser_whitelist;
-NOTICE:  set_user: deprecated GUC name "set_user.superuser_whitelist"
-HINT:  use "set_user.superuser_allowlist" instead
- set_user.superuser_whitelist 
-------------------------------
- *
-(1 row)
-
-SHOW set_user.nosuperuser_target_whitelist;
-NOTICE:  set_user: deprecated GUC name "set_user.nosuperuser_target_whitelist"
-HINT:  use "set_user.nosuperuser_target_allowlist" instead
- set_user.nosuperuser_target_whitelist 
----------------------------------------
- *
-(1 row)
-
 -- test set_user
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
