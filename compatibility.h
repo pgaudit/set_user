@@ -22,10 +22,6 @@
  * Introduces ReadOnlyTree boolean
  */
 #if PG_VERSION_NUM >= 140000
-static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
-					ProcessUtilityContext context, ParamListInfo params,
-					QueryEnvironment *queryEnv,
-					DestReceiver *dest, QueryCompletion *qc);
 #define _PU_HOOK \
 	static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree, \
 						ProcessUtilityContext context, ParamListInfo params, \
@@ -47,10 +43,6 @@ static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTr
  */
 #if PG_VERSION_NUM >= 130000
 #ifndef _PU_HOOK
-static void PU_hook(PlannedStmt *pstmt, const char *queryString,
-					ProcessUtilityContext context, ParamListInfo params,
-					QueryEnvironment *queryEnv,
-					DestReceiver *dest, QueryCompletion *qc);
 #define _PU_HOOK \
 	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
 						ProcessUtilityContext context, ParamListInfo params, \
@@ -89,9 +81,6 @@ _heap_tuple_get_oid(HeapTuple roleTup)
  */
 #if PG_VERSION_NUM >= 100000
 # ifndef _PU_HOOK
-static void PU_hook(PlannedStmt *pstmt, const char *queryString,
-					ProcessUtilityContext context, ParamListInfo params,
-					QueryEnvironment *queryEnv, DestReceiver *dest, char *completionTag);
 #define _PU_HOOK \
 	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
 						ProcessUtilityContext context, ParamListInfo params, \
@@ -127,10 +116,6 @@ static void PU_hook(PlannedStmt *pstmt, const char *queryString,
  */
 #if PG_VERSION_NUM >= 90400
 # ifndef _PU_HOOK
-static void PU_hook(Node *parsetree, const char *queryString,
-					ProcessUtilityContext context, ParamListInfo params,
-					DestReceiver *dest, char *completionTag);
-
 #define _PU_HOOK \
 	static void PU_hook(Node *parsetree, const char *queryString, \
 						ProcessUtilityContext context, ParamListInfo params, \
@@ -159,5 +144,8 @@ _heap_tuple_get_oid(HeapTuple roleTup)
 #if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90400
 #error "This extension only builds with PostgreSQL 9.4 or later"
 #endif
+
+/* Use our version-specific static declaration here */
+_PU_HOOK;
 
 #endif	/* SET_USER_COMPAT_H */
