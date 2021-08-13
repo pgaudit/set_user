@@ -29,17 +29,26 @@
 
 #include "pg_config.h"
 
+#include "access/genam.h"
 #include "access/htup_details.h"
+#include "access/table.h"
 #include "access/xact.h"
+#include "catalog/indexing.h"
+#include "catalog/objectaccess.h"
 #include "catalog/pg_authid.h"
 #include "catalog/pg_proc.h"
 #include "miscadmin.h"
+#include "parser/parse_func.h"
 #include "tcop/utility.h"
 #include "utils/acl.h"
 #include "utils/builtins.h"
+#include "utils/catcache.h"
+#include "utils/fmgroids.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
+#include "utils/snapmgr.h"
 #include "utils/syscache.h"
+#include "utils/rel.h"
 
 #include "set_user.h"
 
@@ -55,6 +64,7 @@ static char *save_log_statement = NULL;
 static Oid save_OldUserId = InvalidOid;
 static char *reset_token = NULL;
 static ProcessUtility_hook_type prev_hook = NULL;
+static object_access_hook_type next_object_access_hook;
 
 static bool Block_AS = false;
 static bool Block_CP = false;
@@ -63,6 +73,8 @@ static char *SU_Allowlist = NULL;
 static char *NOSU_TargetAllowlist = NULL;
 static char *SU_AuditTag = NULL;
 static bool exit_on_error = true;
+static const char *set_config_proc_name = "set_config_by_name";
+static List *set_config_oid_cache = NIL;
 
 static void PostSetUserHook(bool is_reset, const char *newuser);
 
@@ -72,6 +84,12 @@ void _PG_fini(void);
 
 DEPRECATED_GUC(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetWhitelist, NOSU_TargetAllowlist)
 DEPRECATED_GUC(superuser_whitelist, superuser_allowlist, SU_Whitelist, SU_Allowlist)
+
+/* used to block set_config() */
+static void set_user_object_access(ObjectAccessType access, Oid classId, Oid objectId, int subId, void *arg);
+static void set_user_block_set_config(Oid functionId);
+static void set_user_check_proc(HeapTuple procTup, Relation rel);
+static void set_user_cache_proc(Oid functionId);
 
 /*
  * check_user_allowlist
@@ -430,6 +448,10 @@ _PG_init(void)
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
 	ProcessUtility_hook = PU_hook;
+
+	/* Object access hook */
+	next_object_access_hook = object_access_hook;
+	object_access_hook = set_user_object_access;
 }
 
 void
@@ -584,3 +606,201 @@ set_session_auth(PG_FUNCTION_ARGS)
 	PG_RETURN_TEXT_P(cstring_to_text("OK"));
 }
 	
+/*
+ * set_user_object_access
+ *
+ * Add some extra checking of bypass functions using the object access hook.
+ *
+ */
+static void
+set_user_object_access (ObjectAccessType access, Oid classId, Oid objectId, int subId, void *arg)
+{
+	/* If set_user has been used to transition, enforce `set_config` block. */
+	if (save_OldUserId != InvalidOid)
+	{
+		if (next_object_access_hook)
+		{
+			(*next_object_access_hook)(access, classId, objectId, subId, arg);
+		}
+
+		switch (access)
+		{
+			case OAT_FUNCTION_EXECUTE:
+			{
+				/* Update the `set_config` Oid cache if necessary. */
+				set_user_cache_proc(InvalidOid);
+
+				/* Now see if this function is blocked */
+				set_user_block_set_config(objectId);
+				break;
+			}
+			case OAT_POST_ALTER:
+			case OAT_POST_CREATE:
+			{
+				if (classId == ProcedureRelationId)
+				{
+					set_user_cache_proc(objectId);
+				}
+				break;
+			}
+			default:
+				break;
+		}
+	}
+}
+
+/*
+ * set_user_block_set_config
+ *
+ * Error out if the provided functionId is in the `set_config_procs` cache.
+ */
+static void
+set_user_block_set_config(Oid functionId)
+{
+	MemoryContext	ctx;
+
+	/* This is where we store the set_config Oid cache. */
+	ctx = MemoryContextSwitchTo(CacheMemoryContext);
+
+	/* Check the cache for the current function Oid */
+	if (list_member_oid(set_config_oid_cache, functionId))
+	{
+		ObjectAddress	object;
+		char		*funcname = NULL;
+
+		object.classId = ProcedureRelationId;
+		object.objectId = functionId;
+		object.objectSubId = 0;
+
+		funcname = getObjectIdentity(&object);
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("\"%s\" blocked by set_user", funcname),
+				 errhint("Use \"SET\" syntax instead.")));
+	}
+
+	MemoryContextSwitchTo(ctx);
+}
+
+/*
+ * set_user_check_proc
+ *
+ * Check the specified HeapTuple to see if its `prosrc` attribute matches
+ * `set_config_by_name`. Update the cache as appropriate:
+ *
+ * 1) Add to the cache if it's not there but `prosrc` matches.
+ *
+ * 2) Remove from the cache if it's present and no longer matches.
+ */
+static void
+set_user_check_proc(HeapTuple procTup, Relation rel)
+{
+	MemoryContext		ctx;
+	Datum       		prosrcdatum;
+	bool				isnull;
+	Form_pg_proc		procform;
+
+	/* For function metadata (Oid) */
+	procform = (Form_pg_proc) GETSTRUCT(procTup);
+
+	/* Figure out the underlying function */
+	prosrcdatum = heap_getattr(procTup, Anum_pg_proc_prosrc, RelationGetDescr(rel), &isnull);
+	if (isnull)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("set_user: null prosrc for function %u", procform->oid)));
+	}
+
+	/*
+	 * The Oid cache is as good as the underlying cache context, so store it
+	 * there.
+	 */
+	ctx = MemoryContextSwitchTo(CacheMemoryContext);
+
+	/* Make sure the Oid cache is up-to-date */
+	if (strcmp(TextDatumGetCString(prosrcdatum), set_config_proc_name) == 0)
+	{
+		set_config_oid_cache = list_append_unique_oid(set_config_oid_cache, procform->oid);
+	}
+	else if (list_member_oid(set_config_oid_cache, procform->oid))
+	{
+		set_config_oid_cache = list_delete_oid(set_config_oid_cache, procform->oid);
+	}
+
+	MemoryContextSwitchTo(ctx);
+}
+
+/*
+ * set_user_cache_proc
+ *
+ * This function has two modes of operation, based on the provided argument:
+ *
+ * 1) `functionId` is not set (InvalidOid) - scan all procedures to
+ * initialize a list of function Oids which call `set_config_by_name()` under the
+ * hood.
+ *
+ * 2) `functionId` is a valid Oid - grab the syscache entry for the provided
+ * Oid to inspect `prosrc` attribute and determine whether it should be in the
+ * `set_config_oid_cache` list.
+ */
+static void
+set_user_cache_proc(Oid functionId)
+{
+	HeapTuple		procTup;
+	Relation		rel;
+	SysScanDesc		sscan;
+	/* Defaults for full catalog scan */
+	Oid				indexId = InvalidOid;
+	bool			indexOk = false;
+	Snapshot		snapshot = NULL;
+	int				nkeys = 0;
+	ScanKeyData		skey;
+
+	/*
+	 * If checking the cache for a specific function Oid, we need to narrow the heap
+	 * scan by setting a scan key and some other data.
+	 */
+	if (functionId != InvalidOid)
+	{
+			indexId = ProcedureOidIndexId;
+			indexOk = true;
+			snapshot = SnapshotSelf;
+			nkeys = 1;
+			ScanKeyInit(&skey, Anum_pg_proc_oid, BTEqualStrategyNumber, F_OIDEQ, ObjectIdGetDatum(functionId));
+	}
+	else if (set_config_oid_cache != NIL)
+	{
+		/* No need to re-initialize the cache. We've already been here. */
+		return;
+	}
+
+	/* Go ahead and do the work */
+	PG_TRY();
+	{
+		rel = table_open(ProcedureRelationId, AccessShareLock);
+		sscan = systable_beginscan(rel, indexId, indexOk, snapshot, nkeys, &skey);
+
+		/*
+		 * InvalidOid implies complete heap scan to initialize the
+		 * set_config cache.
+		 *
+		 * If we have a scankey, this should only match one item.
+		 */
+		while (HeapTupleIsValid(procTup = systable_getnext(sscan)))
+		{
+			set_user_check_proc(procTup, rel);
+		}
+	}
+	PG_CATCH();
+	{
+		systable_endscan(sscan);
+		table_close(rel, NoLock);
+
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+
+	systable_endscan(sscan);
+	table_close(rel, NoLock);
+}

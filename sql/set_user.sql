@@ -52,6 +52,12 @@ SET log_statement = DEFAULT;
 RESET log_statement;
 BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 
+-- set_config() should fail
+SELECT set_config('wal_level', 'minimal', false);
+CREATE OR REPLACE FUNCTION backdoor(text, text, boolean) RETURNS BOOL AS 'set_config_by_name' LANGUAGE INTERNAL;
+SELECT backdoor('log_statement', 'none', true);
+UPDATE pg_settings SET setting = 'none' WHERE name = 'log_statement';
+
 -- test reset_user
 RESET ROLE; -- should fail
 RESET SESSION AUTHORIZATION; -- should fail

@@ -75,6 +75,17 @@ RESET log_statement;
 ERROR:  "SET log_statement" blocked by set_user config
 BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 ERROR:  "SET log_statement" blocked by set_user config
+-- set_config() should fail
+SELECT set_config('wal_level', 'minimal', false);
+ERROR:  "pg_catalog.set_config(pg_catalog.text,pg_catalog.text,boolean)" blocked by set_user
+HINT:  Use "SET" syntax instead.
+CREATE OR REPLACE FUNCTION backdoor(text, text, boolean) RETURNS BOOL AS 'set_config_by_name' LANGUAGE INTERNAL;
+SELECT backdoor('log_statement', 'none', true);
+ERROR:  "public.backdoor(pg_catalog.text,pg_catalog.text,boolean)" blocked by set_user
+HINT:  Use "SET" syntax instead.
+UPDATE pg_settings SET setting = 'none' WHERE name = 'log_statement';
+ERROR:  "pg_catalog.set_config(pg_catalog.text,pg_catalog.text,boolean)" blocked by set_user
+HINT:  Use "SET" syntax instead.
 -- test reset_user
 RESET ROLE; -- should fail
 ERROR:  "SET/RESET ROLE" blocked by set_user
