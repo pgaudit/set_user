@@ -34,6 +34,9 @@
 #define _standard_ProcessUtility \
 	standard_ProcessUtility(pstmt, queryString, ReadOnlyTree, context, params, queryEnv, dest, qc)
 
+#define getObjectIdentity(address) \
+	getObjectIdentity(address,false)
+
 #endif /* 14+ */
 
 /*
