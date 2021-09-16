@@ -377,19 +377,23 @@ set_user(PG_FUNCTION_ARGS)
 			PG_RETURN_TEXT_P(cstring_to_text("OK"));
 		}
 
-		if (prev_state->reset_token && !is_token)
-			ereport(ERROR,
-					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-					 errmsg("reset token required but not provided")));
-		else if (prev_state->reset_token && is_token)
-			curr_state->reset_token = text_to_cstring(PG_GETARG_TEXT_PP(0));
-
+		/* Enforce token comparison if the reset_token is set */
 		if (prev_state->reset_token)
 		{
-			if (strcmp(old_state->reset_token, new_state->reset_token) != 0)
+			if (!is_token)
+			{
+				ereport(ERROR,
+						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+						 errmsg("reset token required but not provided")));
+			}
+
+			pending_state->reset_token = text_to_cstring(PG_GETARG_TEXT_PP(0));
+			if (strcmp(prev_state->reset_token, pending_state->reset_token) != 0)
+			{
 				ereport(ERROR,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 						errmsg("incorrect reset token provided")));
+			}
 		}
 
 		/* store old state as pending */
@@ -397,7 +401,6 @@ set_user(PG_FUNCTION_ARGS)
 		pending_state->username = GETUSERNAMEFROMID(prev_state->userid);
 		pending_state->log_statement = prev_state->log_statement;
 		pending_state->log_prefix = prev_state->log_prefix;
-		pending_state->reset_token = NULL;
 		pending_state->is_superuser = superuser_arg(prev_state->userid);
 	}
 	else
