@@ -1,0 +1,54 @@
+# CI for set_user Pull Requests and pushes to the cicd branch.
+# Runs regression tests against all supported versions of postgres.
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  regression-tests:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_DIR: ${{ github.workspace }}/.github/docker
+      RESOURCE_DIR: ${{ github.workspace }}/.github/resources
+      SCRIPT_DIR: ${{ github.workspace }}/.github/resources/scripts
+    strategy:
+      matrix:
+        include:
+          - {pgver: 9.4, devpkg: 9.4}
+          - {pgver: 9.5, devpkg: 9.5}
+          - {pgver: 9.6, devpkg: 9.6}
+          - {pgver: 10, devpkg: 10}
+          - {pgver: 11, devpkg: 11}
+          - {pgver: 12, devpkg: 12}
+          - {pgver: 13, devpkg: 13}
+          - {pgver: 14beta3, devpkg: 14}
+    steps:
+      - name: Checkout set_user repo
+        uses: actions/checkout@v2.3.4
+
+      - name: Build set_user
+        run: |
+          docker build -t set_user:latest \
+                --build-arg PGVER=${{ matrix.pgver }} \
+                --build-arg DEVPKG=${{ matrix.devpkg }} \
+                -f ${{ env.DOCKER_DIR }}/Dockerfile .
+
+      - name: Run PG set_user
+        run: |
+          docker-compose -f ${{ env.RESOURCE_DIR }}/set_user.yml up -d
+          /bin/bash ${{ env.SCRIPT_DIR }}/healthcheck.sh set_user 60
+
+      - name: Run tests
+        run: |
+          docker exec set_user make -C /src/set_user USE_PGXS=1 REGRESS_OPTS='--user=postgres' installcheck
+
+      - name: Show any regression diffs
+        if: always()
+        continue-on-error: true
+        run: |
+          docker cp set_user:/src/set_user/regression.diffs ./regression.diffs
+          cat ./regression.diffs
