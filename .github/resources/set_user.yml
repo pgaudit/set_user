@@ -1,0 +1,12 @@
+# Custom service that contains the postgres with the installed set_user extension
+version: '3'
+services:
+  set_user:
+    container_name: set_user
+    image: set_user:latest
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      interval: 10s
+      timeout: 5s
