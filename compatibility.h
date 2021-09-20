@@ -70,14 +70,34 @@
  */
 #if PG_VERSION_NUM >= 120000
 #define HEAP_TUPLE_GET_OID
+
+/*
+ * _heap_tuple_get_oid
+ *
+ * Return the oid of the tuple based on the provided catalogID.
+ */
 static inline Oid
-_heap_tuple_get_oid(HeapTuple roleTup)
+_heap_tuple_get_oid(HeapTuple tuple, Oid catalogID)
 {
-	return ((Form_pg_authid) GETSTRUCT(roleTup))->oid;
+        switch (catalogID)
+        {
+                case ProcedureRelationId:
+                        return ((Form_pg_proc) GETSTRUCT(tuple))->oid;
+                        break;
+                case AuthIdRelationId:
+                        return ((Form_pg_authid) GETSTRUCT(tuple))->oid;
+                        break;
+                default:
+                        ereport(ERROR,
+                                        (errcode(ERRCODE_SYNTAX_ERROR),
+                                         errmsg("set_user: invalid relation ID provided")));
+                        return 0;
+        }
 }
 
-#include "access/table.h"
 
+#include "access/table.h"
+#define OBJECTADDRESS
 #endif /* 12+ */
 
 /*
@@ -141,15 +161,21 @@ _heap_tuple_get_oid(HeapTuple roleTup)
 
 # ifndef HEAP_TUPLE_GET_OID
 static inline Oid
-_heap_tuple_get_oid(HeapTuple roleTup)
+_heap_tuple_get_oid(HeapTuple tup, Oid catalogId)
 {
-	return HeapTupleGetOid(roleTup);
+	return HeapTupleGetOid(tup);
 }
 # endif
 
 #ifndef TABLEOPEN
 #define table_open(r, l)	heap_open(r, l)
 #define table_close(r, l)	heap_close(r, l)
+#endif
+
+#include "access/heapam.h"
+
+#ifndef OBJECTADDRESS
+#include "utils/tqual.h"
 #endif
 
 #endif /* 9.4 */
