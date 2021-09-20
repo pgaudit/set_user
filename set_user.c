@@ -31,7 +31,6 @@
 
 #include "access/genam.h"
 #include "access/htup_details.h"
-#include "access/table.h"
 #include "access/xact.h"
 #include "catalog/indexing.h"
 #include "catalog/objectaccess.h"

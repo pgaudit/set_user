@@ -59,6 +59,8 @@
 	standard_ProcessUtility(pstmt, queryString,	context, params, queryEnv, dest, qc)
 #endif
 
+#define TABLEOPEN
+
 #endif /* 13+ */
 
 /*
@@ -73,6 +75,8 @@ _heap_tuple_get_oid(HeapTuple roleTup)
 {
 	return ((Form_pg_authid) GETSTRUCT(roleTup))->oid;
 }
+
+#include "access/table.h"
 
 #endif /* 12+ */
 
@@ -142,7 +146,13 @@ _heap_tuple_get_oid(HeapTuple roleTup)
 	return HeapTupleGetOid(roleTup);
 }
 # endif
+
+#ifndef TABLEOPEN
+#define table_open(r, l)	heap_open(r, l)
+#define table_close(r, l)	heap_close(r, l)
 #endif
+
+#endif /* 9.4 */
 
 #if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90400
 #error "This extension only builds with PostgreSQL 9.4 or later"
