@@ -596,7 +596,7 @@ set_session_auth(PG_FUNCTION_ARGS)
 				 errmsg("switching to superuser not allowed"),
 				 errhint("Use \'set_user_u\' to escalate.")));
 
-	InitializeSessionUserId(newuser, InvalidOid);
+	_InitializeSessionUserId(newuser, InvalidOid);
 #else
 	ExitOnAnyError = exit_on_error;
 	elog(ERROR, "Assert build disables set_session_auth()");
