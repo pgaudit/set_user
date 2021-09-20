@@ -134,7 +134,11 @@ _heap_tuple_get_oid(HeapTuple tuple, Oid catalogID)
  */
 #if PG_VERSION_NUM >= 90500
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
-#endif
+
+#define INITSESSIONUSER
+#define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name,ouserid)
+
+#endif /* 9.5+ */
 
 /*
  * PostgreSQL version 9.4+
@@ -207,6 +211,10 @@ _scan_key_init(ScanKey entry,
                                          errmsg("set_user: invalid relation ID provided")));
         }
 }
+
+#ifndef INITSESSIONUSER
+#define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name)
+#endif
 
 #endif /* 9.4 */
 
