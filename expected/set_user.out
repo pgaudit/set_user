@@ -160,6 +160,166 @@ RESET SESSION AUTHORIZATION;
 ALTER SYSTEM SET wal_level = minimal;
 COPY (select 42) TO PROGRAM 'cat';
 SET log_statement = DEFAULT;
+-- test transaction handling
+SET SESSION AUTHORIZATION dba;
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
+CREATE FUNCTION bail() RETURNS bool AS $$
+BEGIN
+	RAISE EXCEPTION 'bailing out !';
+END;
+$$ LANGUAGE plpgsql;
+-- bail during set_user_u
+SELECT set_user_u('postgres'), bail();
+ERROR:  bailing out !
+CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
+SHOW log_statement;
+ log_statement 
+---------------
+ none
+(1 row)
+
+SHOW log_line_prefix;
+ log_line_prefix 
+-----------------
+ %m [%p] 
+(1 row)
+
+-- bail on reset after successful set_user_u
+SELECT set_user_u('postgres');
+ set_user_u 
+------------
+ OK
+(1 row)
+
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | postgres
+(1 row)
+
+SHOW log_statement;
+ log_statement 
+---------------
+ all
+(1 row)
+
+SHOW log_line_prefix;
+ log_line_prefix 
+-----------------
+ %m [%p] AUDIT: 
+(1 row)
+
+SELECT reset_user(), bail();
+ERROR:  bailing out !
+CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | postgres
+(1 row)
+
+SHOW log_statement;
+ log_statement 
+---------------
+ all
+(1 row)
+
+SHOW log_line_prefix;
+ log_line_prefix 
+-----------------
+ %m [%p] AUDIT: 
+(1 row)
+
+SELECT reset_user();
+ reset_user 
+------------
+ OK
+(1 row)
+
+-- bail during set_user
+SELECT set_user('bob'), bail();
+ERROR:  bailing out !
+CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
+SHOW log_statement;
+ log_statement 
+---------------
+ none
+(1 row)
+
+SHOW log_line_prefix;
+ log_line_prefix 
+-----------------
+ %m [%p] 
+(1 row)
+
+-- bail during set_user with token
+SELECT set_user('bob', 'secret'), bail();
+ERROR:  bailing out !
+CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | dba
+(1 row)
+
+SHOW log_statement;
+ log_statement 
+---------------
+ none
+(1 row)
+
+SHOW log_line_prefix;
+ log_line_prefix 
+-----------------
+ %m [%p] 
+(1 row)
+
+-- bail during reset_user with token
+SELECT set_user('bob', 'secret');
+ set_user 
+----------
+ OK
+(1 row)
+
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | bob
+(1 row)
+
+SELECT reset_user('secret'), bail();
+ERROR:  bailing out !
+CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ dba          | bob
+(1 row)
+
+SELECT reset_user('secret');
+ reset_user 
+------------
+ OK
+(1 row)
+
+RESET SESSION AUTHORIZATION;
 -- this is an example of how we might audit existing roles
 SET SESSION AUTHORIZATION dba;
 SELECT set_user_u('postgres');

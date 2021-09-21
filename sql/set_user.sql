@@ -84,6 +84,53 @@ ALTER SYSTEM SET wal_level = minimal;
 COPY (select 42) TO PROGRAM 'cat';
 SET log_statement = DEFAULT;
 
+-- test transaction handling
+SET SESSION AUTHORIZATION dba;
+SELECT SESSION_USER, CURRENT_USER;
+CREATE FUNCTION bail() RETURNS bool AS $$
+BEGIN
+	RAISE EXCEPTION 'bailing out !';
+END;
+$$ LANGUAGE plpgsql;
+
+-- bail during set_user_u
+SELECT set_user_u('postgres'), bail();
+SELECT SESSION_USER, CURRENT_USER;
+SHOW log_statement;
+SHOW log_line_prefix;
+
+-- bail on reset after successful set_user_u
+SELECT set_user_u('postgres');
+SELECT SESSION_USER, CURRENT_USER;
+SHOW log_statement;
+SHOW log_line_prefix;
+SELECT reset_user(), bail();
+SELECT SESSION_USER, CURRENT_USER;
+SHOW log_statement;
+SHOW log_line_prefix;
+SELECT reset_user();
+
+-- bail during set_user
+SELECT set_user('bob'), bail();
+SELECT SESSION_USER, CURRENT_USER;
+SHOW log_statement;
+SHOW log_line_prefix;
+
+-- bail during set_user with token
+SELECT set_user('bob', 'secret'), bail();
+SELECT SESSION_USER, CURRENT_USER;
+SHOW log_statement;
+SHOW log_line_prefix;
+
+-- bail during reset_user with token
+SELECT set_user('bob', 'secret');
+SELECT SESSION_USER, CURRENT_USER;
+SELECT reset_user('secret'), bail();
+SELECT SESSION_USER, CURRENT_USER;
+SELECT reset_user('secret');
+
+RESET SESSION AUTHORIZATION;
+
 -- this is an example of how we might audit existing roles
 SET SESSION AUTHORIZATION dba;
 SELECT set_user_u('postgres');
