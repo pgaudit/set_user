@@ -178,6 +178,36 @@ _heap_tuple_get_oid(HeapTuple tup, Oid catalogId)
 #include "utils/tqual.h"
 #endif
 
+#ifndef Anum_pg_proc_oid
+#include "access/sysattr.h"
+#define Anum_pg_proc_oid ObjectIdAttributeNumber
+#define Anum_pg_authid_oid ObjectIdAttributeNumber
+#endif
+
+/*
+ * _scan_key_init
+ *
+ * Initialize entry based on the catalogID provided.
+ */
+static inline void
+_scan_key_init(ScanKey entry,
+            Oid catalogID,
+            StrategyNumber strategy,
+            RegProcedure procedure,
+            Datum argument)
+{
+        switch (catalogID)
+        {
+                case ProcedureRelationId:
+                        ScanKeyInit(entry, Anum_pg_proc_oid, strategy, procedure, argument);
+                        break;
+                default:
+                        ereport(ERROR,
+                                        (errcode(ERRCODE_SYNTAX_ERROR),
+                                         errmsg("set_user: invalid relation ID provided")));
+        }
+}
+
 #endif /* 9.4 */
 
 #if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90400

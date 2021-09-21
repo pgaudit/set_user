@@ -763,11 +763,11 @@ set_user_cache_proc(Oid functionId)
 	 */
 	if (functionId != InvalidOid)
 	{
-			indexId = ProcedureOidIndexId;
-			indexOk = true;
-			snapshot = SnapshotSelf;
-			nkeys = 1;
-			ScanKeyInit(&skey, Anum_pg_proc_oid, BTEqualStrategyNumber, F_OIDEQ, ObjectIdGetDatum(functionId));
+		indexId = ProcedureOidIndexId;
+		indexOk = true;
+		snapshot = SnapshotSelf;
+		nkeys = 1;
+		_scan_key_init(&skey, ProcedureRelationId, BTEqualStrategyNumber, F_OIDEQ, ObjectIdGetDatum(functionId));
 	}
 	else if (set_config_oid_cache != NIL)
 	{
