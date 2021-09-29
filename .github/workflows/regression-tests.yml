@@ -25,7 +25,7 @@ jobs:
           - {pgver: 11, devpkg: 11}
           - {pgver: 12, devpkg: 12}
           - {pgver: 13, devpkg: 13}
-          - {pgver: 14beta3, devpkg: 14}
+          - {pgver: 14, devpkg: 14}
     steps:
       - name: Checkout set_user repo
         uses: actions/checkout@v2.3.4
