@@ -47,8 +47,7 @@ jobs:
           docker exec set_user make -C /src/set_user USE_PGXS=1 REGRESS_OPTS='--user=postgres' installcheck
 
       - name: Show any regression diffs
-        if: always()
-        continue-on-error: true
+        if: ${{ failure() }} 
         run: |
           docker cp set_user:/src/set_user/regression.diffs ./regression.diffs
           cat ./regression.diffs
