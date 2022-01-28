@@ -704,14 +704,15 @@ set_session_auth(PG_FUNCTION_ARGS)
 static void
 set_user_object_access (ObjectAccessType access, Oid classId, Oid objectId, int subId, void *arg)
 {
+	/* Process the next object_access_hook before continuing */
+	if (next_object_access_hook)
+	{
+		(*next_object_access_hook)(access, classId, objectId, subId, arg);
+	}
+
 	/* If set_user has been used to transition, enforce `set_config` block. */
 	if (curr_state != NULL && curr_state->userid != InvalidOid)
 	{
-		if (next_object_access_hook)
-		{
-			(*next_object_access_hook)(access, classId, objectId, subId, arg);
-		}
-
 		switch (access)
 		{
 			case OAT_FUNCTION_EXECUTE:
