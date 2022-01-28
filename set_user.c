@@ -80,6 +80,7 @@ typedef struct
 static SetUserXactState	*curr_state;
 static SetUserXactState *pending_state;
 static SetUserXactState	*prev_state;
+static void set_user_free_state(SetUserXactState **state);
 
 static bool is_reset = false;
 
@@ -269,6 +270,7 @@ set_user(PG_FUNCTION_ARGS)
 	/* Switch to a persistent memory context to store state */
 	oldcontext = MemoryContextSwitchTo(TopMemoryContext);
 
+	/* Need to pfree in the case of a reset with no initial set */
 	pending_state = palloc0(sizeof(SetUserXactState));
 	if ((nargs == 1 && !is_reset) || nargs == 2)
 	{
@@ -374,6 +376,7 @@ set_user(PG_FUNCTION_ARGS)
 		if (prev_state == NULL || prev_state->userid == InvalidOid)
 		{
 			is_reset = false;
+			set_user_free_state(&pending_state);
 			PG_RETURN_TEXT_P(cstring_to_text("OK"));
 		}
 
@@ -441,7 +444,7 @@ set_user_xact_handler (XactEvent event, void *arg)
 	switch (event)
 	{
 		case XACT_EVENT_PRE_COMMIT:
-			if (pending_state == NULL)
+			if (pending_state == NULL || curr_state == NULL)
 				return;
 
 			oldcontext = MemoryContextSwitchTo(TopMemoryContext);
