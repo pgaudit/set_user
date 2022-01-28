@@ -25,6 +25,9 @@ GRANT newbs TO bob;
 GRANT su TO joe;
 GRANT postgres TO su;
 
+-- test reset_user with no initial set
+SELECT reset_user();
+
 -- test set_user
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
