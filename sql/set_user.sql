@@ -88,13 +88,13 @@ COPY (select 42) TO PROGRAM 'cat';
 SET log_statement = DEFAULT;
 
 -- test transaction handling
-SET SESSION AUTHORIZATION dba;
-SELECT SESSION_USER, CURRENT_USER;
 CREATE FUNCTION bail() RETURNS bool AS $$
 BEGIN
 	RAISE EXCEPTION 'bailing out !';
 END;
 $$ LANGUAGE plpgsql;
+SET SESSION AUTHORIZATION dba;
+SELECT SESSION_USER, CURRENT_USER;
 
 -- bail during set_user_u
 SELECT set_user_u('postgres'), bail();

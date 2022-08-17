@@ -168,6 +168,11 @@ ALTER SYSTEM SET wal_level = minimal;
 COPY (select 42) TO PROGRAM 'cat';
 SET log_statement = DEFAULT;
 -- test transaction handling
+CREATE FUNCTION bail() RETURNS bool AS $$
+BEGIN
+	RAISE EXCEPTION 'bailing out !';
+END;
+$$ LANGUAGE plpgsql;
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
@@ -175,11 +180,6 @@ SELECT SESSION_USER, CURRENT_USER;
  dba          | dba
 (1 row)
 
-CREATE FUNCTION bail() RETURNS bool AS $$
-BEGIN
-	RAISE EXCEPTION 'bailing out !';
-END;
-$$ LANGUAGE plpgsql;
 -- bail during set_user_u
 SELECT set_user_u('postgres'), bail();
 ERROR:  bailing out !
