@@ -804,6 +804,11 @@ test=> select session_user, current_user, user, current_role;
 
 - The extension is now non-relocatable and all functions are schema-qualified.
 
+### Version 4.0.0
+
+- Use of GUCs with `whitelist` have been removed from the codebase. Please use
+  the newer `allowlist` GUCs.
+
 ##  Licensing
 
 Please see the [LICENSE](./LICENSE) file.
