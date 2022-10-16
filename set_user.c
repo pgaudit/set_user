@@ -862,30 +862,19 @@ set_user_cache_proc(Oid functionId)
 	}
 
 	/* Go ahead and do the work */
-	PG_TRY();
-	{
-		rel = table_open(ProcedureRelationId, AccessShareLock);
-		sscan = systable_beginscan(rel, indexId, indexOk, snapshot, nkeys, &skey);
+	rel = table_open(ProcedureRelationId, AccessShareLock);
+	sscan = systable_beginscan(rel, indexId, indexOk, snapshot, nkeys, &skey);
 
-		/*
-		 * InvalidOid implies complete heap scan to initialize the
-		 * set_config cache.
-		 *
-		 * If we have a scankey, this should only match one item.
-		 */
-		while (HeapTupleIsValid(procTup = systable_getnext(sscan)))
-		{
-			set_user_check_proc(procTup, rel);
-		}
-	}
-	PG_CATCH();
+	/*
+	 * InvalidOid implies complete heap scan to initialize the
+	 * set_config cache.
+	 *
+	 * If we have a scankey, this should only match one item.
+	 */
+	while (HeapTupleIsValid(procTup = systable_getnext(sscan)))
 	{
-		systable_endscan(sscan);
-		table_close(rel, NoLock);
-
-		PG_RE_THROW();
+		set_user_check_proc(procTup, rel);
 	}
-	PG_END_TRY();
 
 	systable_endscan(sscan);
 	table_close(rel, NoLock);

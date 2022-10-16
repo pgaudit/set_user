@@ -26,6 +26,6 @@ uninstall-headers:
 	rm "$(DESTDIR)$(includedir)/set_user.h"
 
 clang-tidy: set_user.c
-	${CLANG_TIDY} $^ -- $(CPPFLAGS)
+	${CLANG_TIDY} --checks=-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,performance-*,readability-* $^ -- $(CPPFLAGS)
 
 .PHONY: install-headers uninstall-headers clang-tidy
