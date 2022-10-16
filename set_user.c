@@ -96,7 +96,7 @@ static bool exit_on_error = true;
 static const char *set_config_proc_name = "set_config_by_name";
 static List *set_config_oid_cache = NIL;
 
-static void PostSetUserHook(bool is_reset, const char *newuser);
+static void PostSetUserHook(bool is_reset, const char *username);
 
 extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
