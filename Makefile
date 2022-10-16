@@ -8,11 +8,11 @@ REGRESS = set_user
 
 LDFLAGS_SL += $(filter -lm, $(LIBS))
 
+CLANG_TIDY := $(shell which clang-tidy)
+
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
-
-.PHONY: install-headers uninstall-headers
 
 install: install-headers
 
@@ -24,3 +24,8 @@ uninstall: uninstall-headers
 
 uninstall-headers:
 	rm "$(DESTDIR)$(includedir)/set_user.h"
+
+clang-tidy: set_user.c
+	${CLANG_TIDY} $^ -- $(CPPFLAGS)
+
+.PHONY: install-headers uninstall-headers clang-tidy
