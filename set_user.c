@@ -159,7 +159,11 @@ check_user_allowlist(Oid userId, const char *allowlist)
 			Oid roleId;
 			roleId = get_role_oid(elem + 1, false);
 			if (!OidIsValid(roleId))
-				result = false;
+			{
+				ereport(WARNING,
+						(errcode(ERRCODE_UNDEFINED_OBJECT),
+						 errmsg("invalid role: %s", elem+1)));
+			}
 
 			/* Check to see if userId is contained by group role in allowlist */
 			result = has_privs_of_role(userId, roleId);
@@ -560,15 +564,19 @@ _PU_HOOK
 		{
 			case T_AlterSystemStmt:
 				if (Block_AS)
+				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("ALTER SYSTEM blocked by set_user config")));
+				}
 				break;
 			case T_CopyStmt:
 				if (((CopyStmt *) parsetree)->is_program && Block_CP)
+				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("COPY PROGRAM blocked by set_user config")));
+				}
 				break;
 			case T_VariableSetStmt:
 				if ((strcmp(((VariableSetStmt *) parsetree)->name,
@@ -669,17 +677,21 @@ set_session_auth(PG_FUNCTION_ARGS)
 	/* Look up the username */
 	roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(newuser));
 	if (!HeapTupleIsValid(roleTup))
+	{
 		elog(ERROR, "role \"%s\" does not exist", newuser);
+	}
 
 	NewUser_is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 	ReleaseSysCache(roleTup);
 
 	/* cannot escalate to superuser */
 	if (NewUser_is_superuser)
+	{
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 				 errmsg("switching to superuser not allowed"),
 				 errhint("Use \'set_user_u\' to escalate.")));
+	}
 
 	_InitializeSessionUserId(newuser, InvalidOid);
 #else
