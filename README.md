@@ -270,7 +270,7 @@ variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
 
-This extension supports PostgreSQL versions 9.4 and higher.
+This extension supports PostgreSQL versions 9.5 and higher.
 
 ##  Post-Execution Hooks
 
@@ -808,6 +808,7 @@ test=> select session_user, current_user, user, current_role;
 
 - Use of GUCs with `whitelist` have been removed from the codebase. Please use
   the newer `allowlist` GUCs.
+- PostgreSQL 9.4 no longer supported.
 
 ##  Licensing
 
