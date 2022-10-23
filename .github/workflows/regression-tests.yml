@@ -17,6 +17,7 @@ jobs:
       SCRIPT_DIR: ${{ github.workspace }}/.github/resources/scripts
       DEVPKG: ${{ matrix.devpkg }}
     strategy:
+      fail-fast: false
       matrix:
         pgver: [9.4, 9.5, 9.6, 10, 11, 12, 13, 14, 15]
 
