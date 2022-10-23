@@ -437,7 +437,7 @@ set_user_free_state(SetUserXactState **state)
  * transaction ABORT.
  */
 static void
-set_user_xact_handler (XactEvent event, void *arg)
+set_user_xact_handler (XactEvent event, pg_attribute_unused() void *arg)
 {
 	MemoryContext oldcontext = NULL;
 
