@@ -55,7 +55,6 @@
 PG_MODULE_MAGIC;
 
 #include "compatibility.h"
-#include "deprecated_gucs.h"
 
 #define ALLOWLIST_WILDCARD	"*"
 #define SUPERUSER_AUDIT_TAG	"AUDIT"
@@ -102,9 +101,6 @@ static void PostSetUserHook(bool is_reset, const char *newuser);
 extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
 void _PG_fini(void);
-
-DEPRECATED_GUC(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetWhitelist, NOSU_TargetAllowlist)
-DEPRECATED_GUC(superuser_whitelist, superuser_allowlist, SU_Whitelist, SU_Allowlist)
 
 /* used to block set_config() */
 static void set_user_object_access(ObjectAccessType access, Oid classId, Oid objectId, int subId, void *arg);
@@ -532,9 +528,6 @@ _PG_init(void)
 							 NULL, &exit_on_error, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
 	
-	DefineDeprecatedStringVariable(nosuperuser_target_whitelist, nosuperuser_target_allowlist, NOSU_TargetWhitelist, NOSU_TargetAllowlist);
-	DefineDeprecatedStringVariable(superuser_whitelist, superuser_allowlist, SU_Whitelist, SU_Allowlist);
-
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
 	ProcessUtility_hook = PU_hook;
