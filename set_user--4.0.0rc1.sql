@@ -1,4 +1,4 @@
-/* set-user--3.0.sql */
+/* set-user--4.0.0rc1.sql */
 
 SET LOCAL search_path to @extschema@;
 
@@ -52,4 +52,4 @@ AS 'MODULE_PATHNAME', 'set_session_auth'
 LANGUAGE C STRICT;
 REVOKE EXECUTE ON FUNCTION @extschema@.set_session_auth(text) FROM PUBLIC;
 
-/* No new sql functions for 3.1 */
+/* No new sql functions for 4.0.0 */
