@@ -138,14 +138,6 @@ _heap_tuple_get_oid(HeapTuple tuple, Oid catalogID)
 #define INITSESSIONUSER
 #define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name,ouserid)
 
-#endif /* 9.5+ */
-
-/*
- * PostgreSQL version 9.4+
- *
- * Lowest supported version.
- */
-#if PG_VERSION_NUM >= 90400
 #ifndef _PU_HOOK
 #define _PU_HOOK \
 	static void PU_hook(Node *parsetree, const char *queryString, \
@@ -216,10 +208,10 @@ _scan_key_init(ScanKey entry,
 #define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name)
 #endif
 
-#endif /* 9.4 */
+#endif /* 9.5 */
 
-#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90400
-#error "This extension only builds with PostgreSQL 9.4 or later"
+#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 90500
+#error "This extension only builds with PostgreSQL 9.5 or later"
 #endif
 
 /* Use our version-specific static declaration here */
