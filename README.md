@@ -789,6 +789,11 @@ test=> select session_user, current_user, user, current_role;
 
 ## NOTES
 
+### Version 4.0.0-rc1
+
+- Use of GUCs with `whitelist` have been removed from the codebase. Please use
+  the newer `allowlist` GUCs.
+
 ### Version 2.0.1
 
 - NOTICE fixed to only display on first reference to non-default deprecated
@@ -803,11 +808,6 @@ test=> select session_user, current_user, user, current_role;
   NOTICE.
 
 - The extension is now non-relocatable and all functions are schema-qualified.
-
-### Version 4.0.0-rc1
-
-- Use of GUCs with `whitelist` have been removed from the codebase. Please use
-  the newer `allowlist` GUCs.
 
 ##  Licensing
 
