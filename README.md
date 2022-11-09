@@ -789,10 +789,9 @@ test=> select session_user, current_user, user, current_role;
 
 ## NOTES
 
-### Version 4.0.0-rc1
+### Version 4.0.0
 
-- Use of GUCs with `whitelist` have been removed from the codebase. Please use
-  the newer `allowlist` GUCs.
+- Support for the previously deprecated `whitelist` GUCs is removed. Please update your config to the new `allowlist` equivalent otherwise the default values for the `allowlist` GUCs will be in effect potentially allowing undesired privilege escalation.
 
 ### Version 2.0.1
 
