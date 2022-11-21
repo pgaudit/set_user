@@ -8,7 +8,7 @@ REGRESS = set_user
 
 LDFLAGS_SL += $(filter -lm, $(LIBS))
 
-ifdef WINDOWS_DISUSE_PGXS
+ifdef NO_PGXS
 subdir = contrib/set_user
 top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
