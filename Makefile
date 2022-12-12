@@ -8,9 +8,16 @@ REGRESS = set_user
 
 LDFLAGS_SL += $(filter -lm, $(LIBS))
 
+ifdef NO_PGXS
+subdir = contrib/set_user
+top_builddir = ../..
+include $(top_builddir)/src/Makefile.global
+include $(top_srcdir)/contrib/contrib-global.mk
+else
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
+endif
 
 .PHONY: install-headers uninstall-headers
 
