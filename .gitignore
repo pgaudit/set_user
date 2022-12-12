@@ -5,3 +5,6 @@ results
 
 # Generated documentation
 *.pdf
+
+# Generated extension file
+extension/set_user--*.sql

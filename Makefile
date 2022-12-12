@@ -6,15 +6,14 @@ MODULES = src/set_user
 PG_CONFIG = pg_config
 PGFILEDESC = "set_user - similar to SET ROLE but with added logging"
 REGRESS = set_user
-REGRESS_OPTS = "--inputdir=test"
 
-all: sql/$(EXTENSION)--$(EXTVERSION).sql
+all: extension/$(EXTENSION)--$(EXTVERSION).sql
 
-sql/$(EXTENSION)--$(EXTVERSION).sql: sql/set_user.sql
+extension/$(EXTENSION)--$(EXTVERSION).sql: extension/set_user.sql
 	cat $^ > $@
 
-DATA = $(wildcard updates/*--*.sql) sql/$(EXTENSION)--$(EXTVERSION).sql
-EXTRA_CLEAN = sql/$(EXTENSION)--$(EXTVERSION).sql
+DATA = $(wildcard updates/*--*.sql) extension/$(EXTENSION)--$(EXTVERSION).sql
+EXTRA_CLEAN = extension/$(EXTENSION)--$(EXTVERSION).sql
 
 ifdef NO_PGXS
 subdir = contrib/set_user
