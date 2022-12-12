@@ -6,6 +6,7 @@ MODULES = src/set_user
 PG_CONFIG = pg_config
 PGFILEDESC = "set_user - similar to SET ROLE but with added logging"
 REGRESS = set_user
+REGRESS_OPTS = "--inputdir=test"
 
 all: sql/$(EXTENSION)--$(EXTVERSION).sql
 
