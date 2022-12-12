@@ -1,0 +1,11 @@
+4.0.1
+
+NEW FEATURES
+============
+ - Reorganized repository structure to allow for easier management of extension files during build process.
+ - Added NO_PGXS build flag to allow building of extension without PGXS. Restores ability to build on Windows.
+ - No changes to extension code.
+
+BUGFIXES
+========
+ - None

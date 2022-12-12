@@ -1,12 +1,19 @@
-MODULES = set_user
-
 EXTENSION = set_user
-DATA = set_user--3.0.sql set_user--2.0--3.0.sql set_user--1.6--2.0.sql set_user--1.5--1.6.sql set_user--1.4--1.5.sql set_user--1.1--1.4.sql set_user--1.0--1.1.sql set_user--4.0.0rc1--4.0.0.sql set_user--4.0.0.sql set_user--3.0--4.0.0.sql
+EXTVERSION = $(shell grep default_version $(EXTENSION).control | \
+               sed -e "s/default_version[[:space:]]*=[[:space:]]*'\([^']*\)'/\1/")
+LDFLAGS_SL += $(filter -lm, $(LIBS))
+MODULES = src/set_user
+PG_CONFIG = pg_config
 PGFILEDESC = "set_user - similar to SET ROLE but with added logging"
-
 REGRESS = set_user
 
-LDFLAGS_SL += $(filter -lm, $(LIBS))
+all: sql/$(EXTENSION)--$(EXTVERSION).sql
+
+sql/$(EXTENSION)--$(EXTVERSION).sql: sql/set_user.sql
+	cat $^ > $@
+
+DATA = $(wildcard updates/*--*.sql) sql/$(EXTENSION)--$(EXTVERSION).sql
+EXTRA_CLEAN = sql/$(EXTENSION)--$(EXTVERSION).sql
 
 ifdef NO_PGXS
 subdir = contrib/set_user
@@ -14,7 +21,6 @@ top_builddir = ../..
 include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
 else
-PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 endif
@@ -25,7 +31,7 @@ install: install-headers
 
 install-headers:
 	$(MKDIR_P) "$(DESTDIR)$(includedir)"
-	$(INSTALL_DATA) "set_user.h" "$(DESTDIR)$(includedir)"
+	$(INSTALL_DATA) "src/set_user.h" "$(DESTDIR)$(includedir)"
 
 uninstall: uninstall-headers
 

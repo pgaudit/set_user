@@ -1,224 +1,55 @@
-CREATE EXTENSION set_user;
+/* set-user--4.0.0.sql */
 
--- Ensure the library is loaded.
-LOAD 'set_user';
+SET LOCAL search_path to @extschema@;
 
--- Clean up in case a prior regression run failed
--- First suppress NOTICE messages when users/groups don't exist
-SET client_min_messages TO 'warning';
-DROP USER IF EXISTS dba, bob, joe, newbs, su;
-RESET client_min_messages;
+-- complain if script is sourced in psql, rather than via CREATE EXTENSION
+\echo Use "CREATE EXTENSION set_user" to load this file. \quit
 
--- Create some users to work with
-CREATE USER dba;
-CREATE USER bob;
-CREATE USER joe;
-CREATE ROLE newbs;
-CREATE ROLE su NOINHERIT;
+CREATE FUNCTION @extschema@.set_user(text)
+RETURNS text
+AS 'MODULE_PATHNAME', 'set_user'
+LANGUAGE C;
 
--- dba is the role we want to allow to execute set_user()
-GRANT EXECUTE ON FUNCTION set_user(text) TO dba;
-GRANT EXECUTE ON FUNCTION set_user(text,text) TO dba;
-GRANT EXECUTE ON FUNCTION set_user_u(text) TO dba;
-GRANT newbs TO bob;
--- joe will be able to escalate without set_user() via su
-GRANT su TO joe;
-GRANT postgres TO su;
+CREATE FUNCTION @extschema@.set_user(text, text)
+RETURNS text
+AS 'MODULE_PATHNAME', 'set_user'
+LANGUAGE C STRICT;
 
--- test reset_user with no initial set
-SELECT reset_user();
+REVOKE EXECUTE ON FUNCTION @extschema@.set_user(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION @extschema@.set_user(text, text) FROM PUBLIC;
 
--- test set_user
-SET SESSION AUTHORIZATION dba;
-SELECT SESSION_USER, CURRENT_USER;
-SELECT set_user('postgres');
-SELECT SESSION_USER, CURRENT_USER;
+CREATE FUNCTION @extschema@.reset_user()
+RETURNS text
+AS 'MODULE_PATHNAME', 'set_user'
+LANGUAGE C;
 
--- test set_user_u
-SET SESSION AUTHORIZATION dba;
-SELECT SESSION_USER, CURRENT_USER;
-SELECT set_user_u('postgres');
-SELECT SESSION_USER, CURRENT_USER;
+CREATE FUNCTION @extschema@.reset_user(text)
+RETURNS text
+AS 'MODULE_PATHNAME', 'set_user'
+LANGUAGE C STRICT;
 
--- test multiple successive set_user calls
-SELECT set_user('joe'); -- fail
+GRANT EXECUTE ON FUNCTION @extschema@.reset_user() TO PUBLIC;
+GRANT EXECUTE ON FUNCTION @extschema@.reset_user(text) TO PUBLIC;
 
--- ALTER SYSTEM should fail
-ALTER SYSTEM SET wal_level = minimal;
+/* New functions in 1.1 (now 1.4) begin here */
 
--- COPY PROGRAM should fail
-COPY (select 42) TO PROGRAM 'cat';
+CREATE FUNCTION @extschema@.set_user_u(text)
+RETURNS text
+AS 'MODULE_PATHNAME', 'set_user'
+LANGUAGE C STRICT;
 
--- SET log_statement should fail
-SET log_statement = 'none';
-SET log_statement = DEFAULT;
-RESET log_statement;
-BEGIN; SET LOCAL log_statement = 'none'; ABORT;
+REVOKE EXECUTE ON FUNCTION @extschema@.set_user_u(text) FROM PUBLIC;
 
--- set_config() should fail
-SELECT set_config('wal_level', 'minimal', false);
-CREATE OR REPLACE FUNCTION backdoor(text, text, boolean) RETURNS BOOL AS 'set_config_by_name' LANGUAGE INTERNAL;
-SELECT backdoor('log_statement', 'none', true);
-UPDATE pg_settings SET setting = 'none' WHERE name = 'log_statement';
+/* No new sql functions for 1.5 */
+/* No new sql functions for 1.6 */
+/* No new sql functions for 2.0 */
 
--- test reset_user
-RESET ROLE; -- should fail
-RESET SESSION AUTHORIZATION; -- should fail
-SELECT SESSION_USER, CURRENT_USER;
+/* New functions in 3.0 begin here */
 
-SELECT reset_user();  -- succeed
+CREATE FUNCTION @extschema@.set_session_auth(text)
+RETURNS text
+AS 'MODULE_PATHNAME', 'set_session_auth'
+LANGUAGE C STRICT;
+REVOKE EXECUTE ON FUNCTION @extschema@.set_session_auth(text) FROM PUBLIC;
 
--- test set_user and reset_user with token
-SELECT SESSION_USER, CURRENT_USER;
-SELECT set_user('bob', 'secret');
-SELECT SESSION_USER, CURRENT_USER;
-RESET ROLE; -- should fail
-RESET SESSION AUTHORIZATION; -- should fail
-SELECT SESSION_USER, CURRENT_USER;
-
-SELECT reset_user(); -- should fail
-SELECT SESSION_USER, CURRENT_USER;
-
-SELECT reset_user('secret'); -- succeed
-SELECT SESSION_USER, CURRENT_USER;
-
-RESET SESSION AUTHORIZATION;
-ALTER SYSTEM SET wal_level = minimal;
-COPY (select 42) TO PROGRAM 'cat';
-SET log_statement = DEFAULT;
-
--- test transaction handling
-CREATE FUNCTION bail() RETURNS bool AS $$
-BEGIN
-	RAISE EXCEPTION 'bailing out !';
-END;
-$$ LANGUAGE plpgsql;
-SET SESSION AUTHORIZATION dba;
-SELECT SESSION_USER, CURRENT_USER;
-
--- bail during set_user_u
-SELECT set_user_u('postgres'), bail();
-SELECT SESSION_USER, CURRENT_USER;
-SHOW log_statement;
-SHOW log_line_prefix;
-
--- bail on reset after successful set_user_u
-SELECT set_user_u('postgres');
-SELECT SESSION_USER, CURRENT_USER;
-SHOW log_statement;
-SHOW log_line_prefix;
-SELECT reset_user(), bail();
-SELECT SESSION_USER, CURRENT_USER;
-SHOW log_statement;
-SHOW log_line_prefix;
-SELECT reset_user();
-
--- bail during set_user
-SELECT set_user('bob'), bail();
-SELECT SESSION_USER, CURRENT_USER;
-SHOW log_statement;
-SHOW log_line_prefix;
-
--- bail during set_user with token
-SELECT set_user('bob', 'secret'), bail();
-SELECT SESSION_USER, CURRENT_USER;
-SHOW log_statement;
-SHOW log_line_prefix;
-
--- bail during reset_user with token
-SELECT set_user('bob', 'secret');
-SELECT SESSION_USER, CURRENT_USER;
-SELECT reset_user('secret'), bail();
-SELECT SESSION_USER, CURRENT_USER;
-SELECT reset_user('secret');
-
-RESET SESSION AUTHORIZATION;
-
--- this is an example of how we might audit existing roles
-SET SESSION AUTHORIZATION dba;
-SELECT set_user_u('postgres');
-SELECT rolname FROM pg_authid WHERE rolsuper and rolcanlogin;
-CREATE OR REPLACE VIEW roletree AS
-WITH RECURSIVE
-roltree AS (
-  SELECT u.rolname AS rolname,
-         u.oid AS roloid,
-         u.rolcanlogin,
-         u.rolsuper,
-         '{}'::name[] AS rolparents,
-         NULL::oid AS parent_roloid,
-         NULL::name AS parent_rolname
-  FROM pg_catalog.pg_authid u
-  LEFT JOIN pg_catalog.pg_auth_members m on u.oid = m.member
-  LEFT JOIN pg_catalog.pg_authid g on m.roleid = g.oid
-  WHERE g.oid IS NULL
-  UNION ALL
-  SELECT u.rolname AS rolname,
-         u.oid AS roloid,
-         u.rolcanlogin,
-         u.rolsuper,
-         t.rolparents || g.rolname AS rolparents,
-         g.oid AS parent_roloid,
-         g.rolname AS parent_rolname
-  FROM pg_catalog.pg_authid u
-  JOIN pg_catalog.pg_auth_members m on u.oid = m.member
-  JOIN pg_catalog.pg_authid g on m.roleid = g.oid
-  JOIN roltree t on t.roloid = g.oid
-)
-SELECT
-  r.rolname,
-  r.roloid,
-  r.rolcanlogin,
-  r.rolsuper,
-  r.rolparents
-FROM roltree r
-ORDER BY 1;
-
--- this will show unacceptable results
--- since postgres can log in directly and
--- joe can escalate via su to postgres
-SELECT
-  ro.rolname,
-  ro.rolcanlogin,
-  ro.rolsuper,
-  ro.rolparents
-FROM roletree ro
-WHERE (ro.rolcanlogin AND ro.rolsuper)
-OR
-(
-    ro.rolcanlogin AND EXISTS
-    (
-      SELECT TRUE FROM roletree ri
-      WHERE ri.rolname = ANY (ro.rolparents)
-      AND ri.rolsuper
-    )
-);
-
--- here is how we fix the environment
--- running this in a transaction that will be aborted
--- since we don't really want to make the postgres user
--- nologin during regression testing
-BEGIN;
-REVOKE postgres FROM su;
-ALTER USER postgres NOLOGIN;
-
--- retest, this time successfully
-SELECT
-  ro.rolname,
-  ro.rolcanlogin,
-  ro.rolsuper,
-  ro.rolparents
-FROM roletree ro
-WHERE (ro.rolcanlogin AND ro.rolsuper)
-OR
-(
-    ro.rolcanlogin AND EXISTS
-    (
-      SELECT TRUE FROM roletree ri
-      WHERE ri.rolname = ANY (ro.rolparents)
-      AND ri.rolsuper
-    )
-);
-
--- undo those changes
-ABORT;
+/* No new sql functions for 4.0.0 */
