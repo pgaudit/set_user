@@ -10,7 +10,7 @@ on:
 
 jobs:
   regression-tests:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       DOCKER_DIR: ${{ github.workspace }}/.github/docker
       RESOURCE_DIR: ${{ github.workspace }}/.github/resources
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgver: [11, 12, 13, 14, 15]
+        pgver: [12, 13, 14, 15]
 
     steps:
       - name: Checkout set_user repo
