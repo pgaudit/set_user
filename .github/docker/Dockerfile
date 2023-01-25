@@ -11,4 +11,4 @@ WORKDIR /src/set_user
 RUN apt-get update && \
 	apt-get -y upgrade && \
 	apt-get -y install postgresql-server-dev-${DEVPKG} make gcc
-RUN make USE_PGXS=1 install
+RUN make install

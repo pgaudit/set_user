@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgver: [9.4, 9.5, 9.6, 10, 11, 12, 13, 14, 15]
+        pgver: [12, 13, 14, 15]
 
     steps:
       - name: Checkout set_user repo
