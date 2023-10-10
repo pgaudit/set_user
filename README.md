@@ -337,10 +337,10 @@ Clone PostgreSQL repository:
 $> git clone https://github.com/postgres/postgres.git
 ```
 
-Checkout REL9_5_STABLE (for example) branch:
+Checkout REL_15_STABLE (for example) branch:
 
 ```bash
-$> git checkout REL9_5_STABLE
+$> git checkout REL_15_STABLE
 ```
 
 Make PostgreSQL:
@@ -733,14 +733,14 @@ OR
 set_session_auth():
 ```
 # psql -U postgres test
-psql (13.3)
+psql (15.4)
 Type "help" for help.
 
 test=# grant EXECUTE on FUNCTION set_session_auth(text) to dbclient;
 \q
 
 # psql -U dbclient test
-psql (13.3)
+psql (15.4)
 Type "help" for help.
 
 test=> select session_user, current_user, user, current_role;
