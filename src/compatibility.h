@@ -17,6 +17,20 @@
 #endif
 
 /*
+ * PostgreSQL version 17+
+ *
+ * - Sets bypass_login_check parameter to false in InitializeSessionUserId funcion
+ */
+#if PG_VERSION_NUM >= 170000
+
+#ifndef INITSESSIONUSER
+#define INITSESSIONUSER
+#define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name,ouserid,false)
+#endif
+
+#endif /* 17+ */
+
+/*
  * PostgreSQL version 14+
  *
  * Introduces ReadOnlyTree boolean
@@ -135,8 +149,10 @@ _heap_tuple_get_oid(HeapTuple tuple, Oid catalogID)
 #if PG_VERSION_NUM >= 90500
 #define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
 
+#ifndef INITSESSIONUSER
 #define INITSESSIONUSER
 #define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name,ouserid)
+#endif
 
 #endif /* 9.5+ */
 
