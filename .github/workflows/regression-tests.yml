@@ -3,10 +3,12 @@
 on:
   push:
     branches:
-      - master
+      - integration
+      - '**-ci'
   pull_request:
     branches:
       - master
+      - integration
 
 jobs:
   regression-tests:
@@ -24,11 +26,11 @@ jobs:
     steps:
       - name: Checkout set_user repo
         uses: actions/checkout@v2.3.4
-      
+
       - name: Set DEVPKG to pgver if unset
         if: ${{ env.DEVPKG == '' }}
         run: |
-          echo "DEVPKG=${{ matrix.pgver }}" >> $GITHUB_ENV;  
+          echo "DEVPKG=${{ matrix.pgver }}" >> $GITHUB_ENV;
 
       - name: Build set_user
         run: |
@@ -47,7 +49,7 @@ jobs:
           docker exec set_user make -C /src/set_user USE_PGXS=1 REGRESS_OPTS='--user=postgres' installcheck
 
       - name: Show any regression diffs
-        if: ${{ failure() }} 
+        if: ${{ failure() }}
         run: |
           docker cp set_user:/src/set_user/regression.diffs ./regression.diffs
           cat ./regression.diffs
