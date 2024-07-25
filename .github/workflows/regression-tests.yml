@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout set_user repo
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v4
 
       - name: Set DEVPKG to pgver if unset
         if: ${{ env.DEVPKG == '' }}
