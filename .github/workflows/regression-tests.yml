@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgver: [12, 13, 14, 15, 16]
+        pgver: [12, 13, 14, 15, 16, 17beta2]
 
     steps:
       - name: Checkout set_user repo
@@ -30,7 +30,9 @@ jobs:
       - name: Set DEVPKG to pgver if unset
         if: ${{ env.DEVPKG == '' }}
         run: |
-          echo "DEVPKG=${{ matrix.pgver }}" >> $GITHUB_ENV;
+          # Cut off label and leave only major version number (17beta2 -> 17)
+          DEVPKG=$(echo ${{ matrix.pgver }} | sed 's/^\([0-9]\{2\}\).*/\1/')
+          echo "DEVPKG=$DEVPKG" >> $GITHUB_ENV;
 
       - name: Build set_user
         run: |
