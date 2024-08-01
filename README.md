@@ -270,7 +270,8 @@ variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
 
-This extension supports PostgreSQL versions 9.4 and higher.
+This extension supports PostgreSQL versions 12 and higher. Prior versions of
+PostgreSQL are supported by prior versions of set_user.
 
 ##  Post-Execution Hooks
 
@@ -744,19 +745,19 @@ psql (15.4)
 Type "help" for help.
 
 test=> select session_user, current_user, user, current_role;
- session_user | current_user |   user   | current_role 
+ session_user | current_user |   user   | current_role
 --------------+--------------+----------+--------------
  dbclient     | dbclient     | dbclient | dbclient
 (1 row)
 
 test=> select set_session_auth('jeff');
- set_session_auth 
+ set_session_auth
 ------------------
  OK
 (1 row)
 
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
@@ -765,7 +766,7 @@ test=> -- the role switch is irrevocable
 test=> reset role;
 RESET
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
@@ -773,7 +774,7 @@ test=> select session_user, current_user, user, current_role;
 test=> reset session authorization;
 RESET
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
@@ -781,7 +782,7 @@ test=> select session_user, current_user, user, current_role;
 test=> set role none;
 SET
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
