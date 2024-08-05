@@ -36,6 +36,7 @@ jobs:
 
       - name: Build set_user
         run: |
+          sudo apt-get install -y docker-compose
           docker build -t set_user:latest \
                 --build-arg PGVER=${{ matrix.pgver }} \
                 --build-arg DEVPKG=${{ env.DEVPKG }} \
