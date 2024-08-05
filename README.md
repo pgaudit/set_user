@@ -270,7 +270,8 @@ variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
 
-This extension supports PostgreSQL versions 9.4 and higher.
+This extension supports PostgreSQL versions 12 and higher. Prior versions of
+PostgreSQL are supported by prior versions of set_user.
 
 ##  Post-Execution Hooks
 
