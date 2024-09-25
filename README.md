@@ -52,8 +52,6 @@ Specifically, when an allowed user executes `set_user(text)` or
 * The current effective user becomes `rolename`.
 * The role transition is logged, with a specific notation if `rolename` is a
   superuser.
-* `log_statement` setting is set to "all", meaning every SQL statement executed
-  while in this state will also get logged.
 * If `set_user.block_alter_system` is set to "on", `ALTER SYSTEM` commands will
   be blocked.
 * If `set_user.block_copy_program` is set to "on", `COPY PROGRAM` commands will
@@ -745,19 +743,19 @@ psql (15.4)
 Type "help" for help.
 
 test=> select session_user, current_user, user, current_role;
- session_user | current_user |   user   | current_role 
+ session_user | current_user |   user   | current_role
 --------------+--------------+----------+--------------
  dbclient     | dbclient     | dbclient | dbclient
 (1 row)
 
 test=> select set_session_auth('jeff');
- set_session_auth 
+ set_session_auth
 ------------------
  OK
 (1 row)
 
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
@@ -766,7 +764,7 @@ test=> -- the role switch is irrevocable
 test=> reset role;
 RESET
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
@@ -774,7 +772,7 @@ test=> select session_user, current_user, user, current_role;
 test=> reset session authorization;
 RESET
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
@@ -782,7 +780,7 @@ test=> select session_user, current_user, user, current_role;
 test=> set role none;
 SET
 test=> select session_user, current_user, user, current_role;
- session_user | current_user | user | current_role 
+ session_user | current_user | user | current_role
 --------------+--------------+------+--------------
  jeff         | jeff         | jeff | jeff
 (1 row)
