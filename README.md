@@ -270,7 +270,8 @@ variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
 
-This extension supports PostgreSQL versions 9.4 and higher.
+This extension supports PostgreSQL versions 12 and higher. Prior versions of
+PostgreSQL are supported by prior versions of set_user.
 
 ##  Post-Execution Hooks
 
@@ -786,27 +787,6 @@ test=> select session_user, current_user, user, current_role;
  jeff         | jeff         | jeff | jeff
 (1 row)
 ```
-
-## NOTES
-
-### Version 4.0.0
-
-- Support for the previously deprecated `whitelist` GUCs is removed. Please update your config to the new `allowlist` equivalent otherwise the default values for the `allowlist` GUCs will be in effect potentially allowing undesired privilege escalation.
-
-### Version 2.0.1
-
-- NOTICE fixed to only display on first reference to non-default deprecated
-  variable.
-- Deprecated GUCs are removed from `SHOW ALL`.
-
-### Version 2.0.0
-
-- Use of GUCs with `whitelist` have been deprecated in lieu of a more
-  appropriate `allowlist`. The last GUC set by `ALTER SYSTEM` will be used on
-  reload, the first attempt to `SHOW` a deprecated variable will provide a
-  NOTICE.
-
-- The extension is now non-relocatable and all functions are schema-qualified.
 
 ##  Licensing
 
