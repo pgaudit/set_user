@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgver: [12, 13, 14, 15, 16, 17beta2]
+        pgver: [12, 13, 14, 15, 16, 17, 18beta1]
 
     steps:
       - name: Checkout set_user repo
