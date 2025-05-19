@@ -2,7 +2,7 @@
 
 Testing is performed using a Docker container. First build the container:
 ```
-podman build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -f test/Dockerfile.debian -t set_user-test .
+docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -f test/Dockerfile.debian -t set_user-test .
 ```
 or
 ```
