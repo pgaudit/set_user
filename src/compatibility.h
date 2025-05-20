@@ -22,7 +22,7 @@
  */
  #if PG_VERSION_NUM < 180000
 
- #define PG_MODULE_MAGIC_EXT(...) PG_MODULE_MAGIC()
+ #define PG_MODULE_MAGIC_EXT(...) PG_MODULE_MAGIC
 
  #endif /* PG_VERSION_NUM < 180000 */
 

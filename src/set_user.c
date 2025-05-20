@@ -51,10 +51,9 @@
 #include "utils/rel.h"
 
 #include "set_user.h"
+#include "compatibility.h"
 
 PG_MODULE_MAGIC_EXT(.name = "set_user", .version = "4.2.0");
-
-#include "compatibility.h"
 
 #define ALLOWLIST_WILDCARD	"*"
 #define SUPERUSER_AUDIT_TAG	"AUDIT"
