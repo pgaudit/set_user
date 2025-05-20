@@ -27,7 +27,7 @@ jobs:
           path: set_user
 
       - name: Build Test Container
-        run: docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg PGVER={{matrix.pgver}} -f ${GITHUB_WORKSPACE?}/pgaudit/test/Dockerfile.debian -t set_user-test ${GITHUB_WORKSPACE?}/set_user
+        run: docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg PGVER={{matrix.pgver}} -f ${GITHUB_WORKSPACE?}/set_user/test/Dockerfile.debian -t set_user-test ${GITHUB_WORKSPACE?}/set_user
 
       - name: Run Test
         run: docker run -v ${GITHUB_WORKSPACE?}/set_user:/set_user set_user-test /set_user/test/test.sh
