@@ -22,7 +22,7 @@ GRANT su TO joe;
 GRANT postgres TO su;
 -- test reset_user with no initial set
 SELECT reset_user();
- reset_user 
+ reset_user
 ------------
  OK
 (1 row)
@@ -30,7 +30,7 @@ SELECT reset_user();
 -- test set_user
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
@@ -39,7 +39,7 @@ SELECT set_user('postgres');
 ERROR:  switching to superuser not allowed
 HINT:  Use 'set_user_u' to escalate.
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
@@ -47,19 +47,19 @@ SELECT SESSION_USER, CURRENT_USER;
 -- test set_user_u
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
 
 SELECT set_user_u('postgres');
- set_user_u 
+ set_user_u
 ------------
  OK
 (1 row)
 
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | postgres
 (1 row)
@@ -101,32 +101,32 @@ RESET SESSION AUTHORIZATION; -- should fail
 ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
 HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | postgres
 (1 row)
 
 SELECT reset_user();  -- succeed
- reset_user 
+ reset_user
 ------------
  OK
 (1 row)
 
 -- test set_user and reset_user with token
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
 
 SELECT set_user('bob', 'secret');
- set_user 
+ set_user
 ----------
  OK
 (1 row)
 
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | bob
 (1 row)
@@ -138,7 +138,7 @@ RESET SESSION AUTHORIZATION; -- should fail
 ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
 HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | bob
 (1 row)
@@ -146,19 +146,19 @@ SELECT SESSION_USER, CURRENT_USER;
 SELECT reset_user(); -- should fail
 ERROR:  reset token required but not provided
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | bob
 (1 row)
 
 SELECT reset_user('secret'); -- succeed
- reset_user 
+ reset_user
 ------------
  OK
 (1 row)
 
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
@@ -175,7 +175,7 @@ END;
 $$ LANGUAGE plpgsql;
 SET SESSION AUTHORIZATION dba;
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
@@ -185,71 +185,71 @@ SELECT set_user_u('postgres'), bail();
 ERROR:  bailing out !
 CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
 
 SHOW log_statement;
- log_statement 
+ log_statement
 ---------------
  none
 (1 row)
 
 SHOW log_line_prefix;
- log_line_prefix 
+ log_line_prefix
 -----------------
- %m [%p] 
+ %m [%p]
 (1 row)
 
 -- bail on reset after successful set_user_u
 SELECT set_user_u('postgres');
- set_user_u 
+ set_user_u
 ------------
  OK
 (1 row)
 
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | postgres
 (1 row)
 
 SHOW log_statement;
- log_statement 
+ log_statement
 ---------------
  all
 (1 row)
 
 SHOW log_line_prefix;
- log_line_prefix 
+ log_line_prefix
 -----------------
- %m [%p] AUDIT: 
+ %m [%p] AUDIT:
 (1 row)
 
 SELECT reset_user(), bail();
 ERROR:  bailing out !
 CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | postgres
 (1 row)
 
 SHOW log_statement;
- log_statement 
+ log_statement
 ---------------
  all
 (1 row)
 
 SHOW log_line_prefix;
- log_line_prefix 
+ log_line_prefix
 -----------------
- %m [%p] AUDIT: 
+ %m [%p] AUDIT:
 (1 row)
 
 SELECT reset_user();
- reset_user 
+ reset_user
 ------------
  OK
 (1 row)
@@ -259,21 +259,21 @@ SELECT set_user('bob'), bail();
 ERROR:  bailing out !
 CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
 
 SHOW log_statement;
- log_statement 
+ log_statement
 ---------------
  none
 (1 row)
 
 SHOW log_line_prefix;
- log_line_prefix 
+ log_line_prefix
 -----------------
- %m [%p] 
+ %m [%p]
 (1 row)
 
 -- bail during set_user with token
@@ -281,32 +281,32 @@ SELECT set_user('bob', 'secret'), bail();
 ERROR:  bailing out !
 CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | dba
 (1 row)
 
 SHOW log_statement;
- log_statement 
+ log_statement
 ---------------
  none
 (1 row)
 
 SHOW log_line_prefix;
- log_line_prefix 
+ log_line_prefix
 -----------------
- %m [%p] 
+ %m [%p]
 (1 row)
 
 -- bail during reset_user with token
 SELECT set_user('bob', 'secret');
- set_user 
+ set_user
 ----------
  OK
 (1 row)
 
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | bob
 (1 row)
@@ -315,13 +315,13 @@ SELECT reset_user('secret'), bail();
 ERROR:  bailing out !
 CONTEXT:  PL/pgSQL function bail() line 3 at RAISE
 SELECT SESSION_USER, CURRENT_USER;
- session_user | current_user 
+ session_user | current_user
 --------------+--------------
  dba          | bob
 (1 row)
 
 SELECT reset_user('secret');
- reset_user 
+ reset_user
 ------------
  OK
 (1 row)
@@ -330,13 +330,13 @@ RESET SESSION AUTHORIZATION;
 -- this is an example of how we might audit existing roles
 SET SESSION AUTHORIZATION dba;
 SELECT set_user_u('postgres');
- set_user_u 
+ set_user_u
 ------------
  OK
 (1 row)
 
 SELECT rolname FROM pg_authid WHERE rolsuper and rolcanlogin;
- rolname  
+ rolname
 ----------
  postgres
 (1 row)
@@ -395,7 +395,7 @@ OR
       AND ri.rolsuper
     )
 );
- rolname  | rolcanlogin | rolsuper |  rolparents   
+ rolname  | rolcanlogin | rolsuper |  rolparents
 ----------+-------------+----------+---------------
  joe      | t           | f        | {postgres,su}
  postgres | t           | t        | {}
@@ -406,7 +406,7 @@ OR
 -- since we don't really want to make the postgres user
 -- nologin during regression testing
 BEGIN;
-REVOKE postgres FROM su;
+REVOKE postgress FROM su;
 ALTER USER postgres NOLOGIN;
 -- retest, this time successfully
 SELECT
@@ -425,7 +425,7 @@ OR
       AND ri.rolsuper
     )
 );
- rolname | rolcanlogin | rolsuper | rolparents 
+ rolname | rolcanlogin | rolsuper | rolparents
 ---------+-------------+----------+------------
 (0 rows)
 
