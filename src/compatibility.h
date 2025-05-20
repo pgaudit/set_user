@@ -17,6 +17,16 @@
 #endif
 
 /*
+ * Define PG_MODULE_MAGIC_EXT() as PG_MODULE_MAGIC() for versions where the new
+ * macro does not exist
+ */
+ #if PG_VERSION_NUM < 180000
+
+ #define PG_MODULE_MAGIC_EXT(...) PG_MODULE_MAGIC()
+
+ #endif /* PG_VERSION_NUM < 180000 */
+
+/*
  * PostgreSQL version 17+
  *
  * - Sets bypass_login_check parameter to false in InitializeSessionUserId funcion

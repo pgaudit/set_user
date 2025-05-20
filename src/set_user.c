@@ -52,7 +52,7 @@
 
 #include "set_user.h"
 
-PG_MODULE_MAGIC;
+PG_MODULE_MAGIC_EXT("set_user", "4.2.0");
 
 #include "compatibility.h"
 
