@@ -406,7 +406,7 @@ OR
 -- since we don't really want to make the postgres user
 -- nologin during regression testing
 BEGIN;
-REVOKE postgress FROM su;
+REVOKE postgres FROM su;
 ALTER USER postgres NOLOGIN;
 -- retest, this time successfully
 SELECT
