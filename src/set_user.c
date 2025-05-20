@@ -527,7 +527,7 @@ _PG_init(void)
 							 "Exit backend process on ERROR during set_session_auth()",
 							 NULL, &exit_on_error, true, PGC_SIGHUP,
 							 0, NULL, NULL, NULL);
-	
+
 	/* Install hook */
 	prev_hook = ProcessUtility_hook;
 	ProcessUtility_hook = PU_hook;
@@ -648,7 +648,7 @@ PostSetUserHook(bool is_reset, const char *username)
 
 /*
  * Similar to SET SESSION AUTHORIZATION, except:
- * 
+ *
  * 1. does not require superuser (GRANTable)
  * 2. does not allow switching to a superuser
  * 3. does not allow reset/switching back
