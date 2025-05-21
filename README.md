@@ -328,7 +328,7 @@ memory before their implementations can access them.
 
 ### Requirements
 
-* PostgreSQL 9.4 or higher.
+* PostgreSQL 13 or higher.
 
 ### Compile and Install
 
