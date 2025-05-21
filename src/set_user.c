@@ -782,7 +782,7 @@ static void
 set_user_check_proc(HeapTuple procTup, Relation rel)
 {
 	MemoryContext		ctx;
-	Datum       		prosrcdatum;
+	Datum				prosrcdatum;
 	bool				isnull;
 	Oid					procoid;
 
