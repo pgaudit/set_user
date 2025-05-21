@@ -17,7 +17,7 @@
 #endif
 
 /*
- * Define PG_MODULE_MAGIC_EXT() as PG_MODULE_MAGIC() for versions where the new
+ * Define PG_MODULE_MAGIC_EXT() as PG_MODULE_MAGIC for versions where the new
  * macro does not exist
  */
  #if PG_VERSION_NUM < 180000
