@@ -8,6 +8,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y sudo wget gnupg tzdata loc
 # PostgreSQL version
 ARG PGVER=18
 
+# Remove the default ubuntu user to reduce the chance of a conflict with the host user
+RUN userdel ubuntu
+
 # Create postgres user/group with specific IDs
 ARG UID=1000
 ARG GID=1000
