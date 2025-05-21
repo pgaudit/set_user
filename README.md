@@ -52,8 +52,6 @@ Specifically, when an allowed user executes `set_user(text)` or
 * The current effective user becomes `rolename`.
 * The role transition is logged, with a specific notation if `rolename` is a
   superuser.
-* `log_statement` setting is set to "all", meaning every SQL statement executed
-  while in this state will also get logged.
 * If `set_user.block_alter_system` is set to "on", `ALTER SYSTEM` commands will
   be blocked.
 * If `set_user.block_copy_program` is set to "on", `COPY PROGRAM` commands will
