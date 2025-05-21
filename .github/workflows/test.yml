@@ -1,0 +1,38 @@
+on:
+  push:
+    branches:
+      - integration
+      - '**-ci'
+  pull_request:
+    branches:
+      - master
+      - integration
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Let all the jobs run to completion even if one fails
+      fail-fast: false
+
+      # Test all supported versions
+      matrix:
+        pgver: [12, 13, 14, 15, 16, 17]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          path: set_user
+
+      - name: Build Test Container
+        run: docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg PGVER=${{matrix.pgver}} -f ${GITHUB_WORKSPACE?}/set_user/test/Dockerfile.debian -t set_user-test ${GITHUB_WORKSPACE?}/set_user
+
+      - name: Run Test
+        run: docker run -v ${GITHUB_WORKSPACE?}/set_user:/set_user set_user-test /set_user/test/test.sh
+
+      - name: Show Any Regression Diffs
+        if: ${{ failure() }}
+        run: |
+          cat ${GITHUB_WORKSPACE?}/set_user/regression.diffs
