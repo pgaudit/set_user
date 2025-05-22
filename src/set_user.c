@@ -238,12 +238,6 @@ set_user(PG_FUNCTION_ARGS)
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("set_user: function lookup failed for %u", funcOid)));
 		}
-		else if (!NameStr(procStruct->proname))
-		{
-			ereport(ERROR,
-					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-					 errmsg("set_user: NULL name for function %u", funcOid)));
-		}
 
 		funcname = pstrdup(NameStr(procStruct->proname));
 		ReleaseSysCache(procTup);
