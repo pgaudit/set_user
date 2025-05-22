@@ -31,6 +31,7 @@
 
 #include "access/genam.h"
 #include "access/htup_details.h"
+#include "access/table.h"
 #include "access/xact.h"
 #include "catalog/indexing.h"
 #include "catalog/objectaccess.h"
@@ -49,6 +50,7 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/rel.h"
+#include "utils/varlena.h"
 
 #include "set_user.h"
 
@@ -166,7 +168,7 @@ check_user_allowlist(Oid userId, const char *allowlist)
 		}
 		else
 		{
-			if (pg_strcasecmp(elem, GETUSERNAMEFROMID(userId)) == 0)
+			if (pg_strcasecmp(elem, GetUserNameFromId(userId, false)) == 0)
 				result = true;
 			else if(pg_strcasecmp(elem, ALLOWLIST_WILDCARD) == 0)
 				/* No explicit usernames intermingled with wildcard. */
@@ -181,6 +183,30 @@ check_user_allowlist(Oid userId, const char *allowlist)
 	}
 	return result;
 }
+
+/*
+ * Return the oid of the tuple based on the provided catalogID
+ */
+ static Oid
+ heap_tuple_get_oid(HeapTuple tuple, Oid catalogID)
+ {
+	switch (catalogID)
+	{
+		case ProcedureRelationId:
+			return ((Form_pg_proc) GETSTRUCT(tuple))->oid;
+			break;
+
+		case AuthIdRelationId:
+			return ((Form_pg_authid) GETSTRUCT(tuple))->oid;
+			break;
+
+		default:
+			ereport(ERROR,
+					(errcode(ERRCODE_SYNTAX_ERROR),
+					errmsg("set_user: invalid relation ID provided")));
+			return 0;
+	}
+ }
 
 /*
  * Similar to SET ROLE but with added logging and some additional
@@ -294,7 +320,7 @@ set_user(PG_FUNCTION_ARGS)
 		if (!HeapTupleIsValid(roleTup))
 			elog(ERROR, "role \"%s\" does not exist", pending_state->username);
 
-		pending_state->userid = _heap_tuple_get_oid(roleTup, AuthIdRelationId);
+		pending_state->userid = heap_tuple_get_oid(roleTup, AuthIdRelationId);
 		pending_state->is_superuser = ((Form_pg_authid) GETSTRUCT(roleTup))->rolsuper;
 		ReleaseSysCache(roleTup);
 
@@ -329,7 +355,7 @@ set_user(PG_FUNCTION_ARGS)
 			curr_state->log_prefix = pstrdup(GetConfigOption("log_line_prefix", true, false));
 			curr_state->reset_token = pending_state->reset_token;
 			curr_state->userid = GetUserId();
-			curr_state->username = GETUSERNAMEFROMID(curr_state->userid);
+			curr_state->username = GetUserNameFromId(curr_state->userid, false);
 			curr_state->is_superuser = superuser_arg(curr_state->userid);
 		}
 
@@ -391,7 +417,7 @@ set_user(PG_FUNCTION_ARGS)
 
 		/* store old state as pending */
 		pending_state->userid = prev_state->userid;
-		pending_state->username = GETUSERNAMEFROMID(prev_state->userid);
+		pending_state->username = GetUserNameFromId(prev_state->userid, false);
 		pending_state->log_statement = prev_state->log_statement;
 		pending_state->log_prefix = prev_state->log_prefix;
 		pending_state->is_superuser = superuser_arg(prev_state->userid);
@@ -550,7 +576,7 @@ _PU_HOOK
 	/* if set_user has been used to transition, enforce set_user GUCs */
 	if (curr_state != NULL && curr_state->userid != InvalidOid)
 	{
-		switch (nodeTag(parsetree))
+		switch (nodeTag((Node *) pstmt->utilityStmt))
 		{
 			case T_AlterSystemStmt:
 				if (Block_AS)
@@ -559,13 +585,13 @@ _PU_HOOK
 							 errmsg("ALTER SYSTEM blocked by set_user config")));
 				break;
 			case T_CopyStmt:
-				if (((CopyStmt *) parsetree)->is_program && Block_CP)
+				if (((CopyStmt *)pstmt->utilityStmt)->is_program && Block_CP)
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("COPY PROGRAM blocked by set_user config")));
 				break;
 			case T_VariableSetStmt:
-				if ((strcmp(((VariableSetStmt *) parsetree)->name,
+				if ((strcmp(((VariableSetStmt *)pstmt->utilityStmt)->name,
 					 "log_statement") == 0) &&
 					Block_LS)
 				{
@@ -573,7 +599,7 @@ _PU_HOOK
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("\"SET log_statement\" blocked by set_user config")));
 				}
-				else if ((strcmp(((VariableSetStmt *) parsetree)->name,
+				else if ((strcmp(((VariableSetStmt *)pstmt->utilityStmt)->name,
 					 "role") == 0))
 				{
 					ereport(ERROR,
@@ -581,7 +607,7 @@ _PU_HOOK
 							 errmsg("\"SET/RESET ROLE\" blocked by set_user"),
 							 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
 				}
-				else if ((strcmp(((VariableSetStmt *) parsetree)->name,
+				else if ((strcmp(((VariableSetStmt *)pstmt->utilityStmt)->name,
 					 "session_authorization") == 0))
 				{
 					ereport(ERROR,
@@ -781,7 +807,7 @@ set_user_check_proc(HeapTuple procTup, Relation rel)
 	Oid					procoid;
 
 	/* For function metadata (Oid) */
-	procoid = _heap_tuple_get_oid(procTup, ProcedureRelationId);
+	procoid = heap_tuple_get_oid(procTup, ProcedureRelationId);
 
 	/* Figure out the underlying function */
 	prosrcdatum = heap_getattr(procTup, Anum_pg_proc_prosrc, RelationGetDescr(rel), &isnull);
@@ -847,7 +873,7 @@ set_user_cache_proc(Oid functionId)
 		indexOk = true;
 		snapshot = SnapshotSelf;
 		nkeys = 1;
-		_scan_key_init(&skey, ProcedureRelationId, BTEqualStrategyNumber, F_OIDEQ, ObjectIdGetDatum(functionId));
+		ScanKeyInit(&skey, Anum_pg_proc_oid, BTEqualStrategyNumber, F_OIDEQ, ObjectIdGetDatum(functionId));
 	}
 	else if (set_config_oid_cache != NIL)
 	{
