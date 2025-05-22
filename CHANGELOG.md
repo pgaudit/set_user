@@ -1,3 +1,11 @@
+4.2.0
+=====
+
+NEW FEATURES
+------------
+- Add PG_MODULE_MAGIC_EXT() macro for PostgreSQL >= 18.
+- Remove support for PostgreSQL 12.
+
 4.1.0
 =====
 
