@@ -83,102 +83,16 @@
 	standard_ProcessUtility(pstmt, queryString,	context, params, queryEnv, dest, qc)
 #endif
 
-#define TABLEOPEN
-
-#endif /* 13+ */
-
-/*
- * PostgreSQL version 12+
- *
- * - Removes OID column
- */
-#if PG_VERSION_NUM >= 120000
-
-#ifndef _PU_HOOK
-#define _PU_HOOK \
-	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
-						ProcessUtilityContext context, ParamListInfo params, \
-						QueryEnvironment *queryEnv, \
-						DestReceiver *dest, char *completionTag)
-
-#define _prev_hook \
-	prev_hook(pstmt, queryString, context, params, queryEnv, dest, completionTag)
-
-#define _standard_ProcessUtility \
-	standard_ProcessUtility(pstmt, queryString, context, params, queryEnv, dest, completionTag)
-
-#endif
-
-#include "utils/varlena.h"
-#define parsetree ((Node *) pstmt->utilityStmt)
-
-#define HEAP_TUPLE_GET_OID
-
-/*
- * _heap_tuple_get_oid
- *
- * Return the oid of the tuple based on the provided catalogID.
- */
-static inline Oid
-_heap_tuple_get_oid(HeapTuple tuple, Oid catalogID)
-{
-        switch (catalogID)
-        {
-                case ProcedureRelationId:
-                        return ((Form_pg_proc) GETSTRUCT(tuple))->oid;
-                        break;
-                case AuthIdRelationId:
-                        return ((Form_pg_authid) GETSTRUCT(tuple))->oid;
-                        break;
-                default:
-                        ereport(ERROR,
-                                        (errcode(ERRCODE_SYNTAX_ERROR),
-                                         errmsg("set_user: invalid relation ID provided")));
-                        return 0;
-        }
-}
-
-
-#include "access/table.h"
-#define OBJECTADDRESS
-
-/*
- * _scan_key_init
- *
- * Initialize entry based on the catalogID provided.
- */
-static inline void
-_scan_key_init(ScanKey entry,
-            Oid catalogID,
-            StrategyNumber strategy,
-            RegProcedure procedure,
-            Datum argument)
-{
-        switch (catalogID)
-        {
-                case ProcedureRelationId:
-                        ScanKeyInit(entry, Anum_pg_proc_oid, strategy, procedure, argument);
-                        break;
-                default:
-                        ereport(ERROR,
-                                        (errcode(ERRCODE_SYNTAX_ERROR),
-                                         errmsg("set_user: invalid relation ID provided")));
-        }
-}
-
-// Introduces two-argument GetUserNameFromId
-#define GETUSERNAMEFROMID(ouserid) GetUserNameFromId(ouserid, false)
-
 #ifndef INITSESSIONUSER
 #define INITSESSIONUSER
 #define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name,ouserid)
 
 #endif
 
-#endif /* 12+ */
+#endif /* 13+ */
 
-#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 120000
-#error "This extension only builds with PostgreSQL 12 or later"
+#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 130000
+#error "This extension only builds with PostgreSQL 13 or later"
 #endif
 
 /* Use our version-specific static declaration here */
