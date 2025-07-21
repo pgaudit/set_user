@@ -1,5 +1,5 @@
 # set_user extension
 comment = 'similar to SET ROLE but with added logging'
-default_version = '4.1.0'
+default_version = '4.2.0'
 module_pathname = '$libdir/set_user'
 relocatable = false
