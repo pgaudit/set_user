@@ -2,6 +2,7 @@ EXTENSION = set_user
 EXTVERSION = $(shell grep default_version $(EXTENSION).control | \
                sed -e "s/default_version[[:space:]]*=[[:space:]]*'\([^']*\)'/\1/")
 LDFLAGS_SL += $(filter -lm, $(LIBS))
+PG_CPPFLAGS = -DEXTVERSION="\"$(EXTVERSION)\""
 MODULES = src/set_user
 PG_CONFIG = pg_config
 PGFILEDESC = "set_user - similar to SET ROLE but with added logging"
