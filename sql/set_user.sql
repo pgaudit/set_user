@@ -6,7 +6,7 @@ LOAD 'set_user';
 -- Clean up in case a prior regression run failed
 -- First suppress NOTICE messages when users/groups don't exist
 SET client_min_messages TO 'warning';
-DROP USER IF EXISTS dba, bob, joe, newbs, su;
+DROP USER IF EXISTS dba, bob, joe, newbs, su, "Joe", "Newbs";
 RESET client_min_messages;
 
 -- Create some users to work with
@@ -222,3 +222,62 @@ OR
 
 -- undo those changes
 ABORT;
+
+-- test nosuperuser_target_allowlist
+\c -
+ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = 'joe,+newbs';
+SELECT pg_reload_conf();
+\c -
+SHOW set_user.nosuperuser_target_allowlist;
+
+SET SESSION AUTHORIZATION dba;
+SELECT set_user('joe'); -- succeed, later group entry does not overwrite match
+SELECT reset_user();
+SELECT set_user('bob'); -- succeed, bob is a member of newbs
+SELECT reset_user();
+SELECT set_user('su'); -- fail, su is not listed
+RESET SESSION AUTHORIZATION;
+
+-- test case-sensitive role names in nosuperuser_target_allowlist
+CREATE USER "Joe";
+SET SESSION AUTHORIZATION dba;
+SELECT set_user('Joe'); -- fail, joe does not match "Joe"
+RESET SESSION AUTHORIZATION;
+
+ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = '"Joe"';
+SELECT pg_reload_conf();
+\c -
+SHOW set_user.nosuperuser_target_allowlist;
+
+SET SESSION AUTHORIZATION dba;
+SELECT set_user('Joe'); -- succeed
+SELECT reset_user();
+SELECT set_user('joe'); -- fail, "Joe" does not match joe
+
+-- test case-sensitive group names in nosuperuser_target_allowlist
+\c -
+CREATE ROLE "Newbs";
+GRANT "Newbs" TO joe;
+ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = '+"Newbs"';
+SELECT pg_reload_conf();
+\c -
+SHOW set_user.nosuperuser_target_allowlist;
+
+SET SESSION AUTHORIZATION dba;
+SELECT set_user('joe'); -- fail, the quotes must enclose the +
+RESET SESSION AUTHORIZATION;
+
+ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = '"+Newbs"';
+SELECT pg_reload_conf();
+\c -
+SHOW set_user.nosuperuser_target_allowlist;
+
+SET SESSION AUTHORIZATION dba;
+SELECT set_user('joe'); -- succeed, joe is a member of "Newbs"
+SELECT reset_user();
+SELECT set_user('bob'); -- fail, bob is a member of newbs not "Newbs"
+
+\c -
+ALTER SYSTEM RESET set_user.nosuperuser_target_allowlist;
+SELECT pg_reload_conf();
+\c -

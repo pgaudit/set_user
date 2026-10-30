@@ -177,6 +177,10 @@ function:
 * `current_user` must be listed in `set_user.superuser_allowlist` OR
   `current_user` must belong to a group that is listed in
   `set_user.superuser_allowlist` (e.g. `'+admin'`)
+* Role names in `set_user.superuser_allowlist` are case-sensitive. Unquoted
+  names are folded to lower case and quoted names (e.g. `'"Admin"'`) are
+  matched exactly. The quotes of a group entry must enclose the `+` (e.g.
+  `'"+Admin"'`).
 * If `set_user.superuser_allowlist` is the empty set , `''`, superuser
   escalation is blocked for all users.
 * If `set_user.superuser_allowlist` is the wildcard character, `'*'`, all users
@@ -196,6 +200,10 @@ The following rules govern non-superuser role transitions through use of
 * The target rolename must be listed in `set_user.nosuperuser_target_allowlist`
   OR the target rolename must belong to a group that is listed in
   `set_user.nosuperuser_target_allowlist` (e.g. `'+client'`)
+* Role names in `set_user.nosuperuser_target_allowlist` are case-sensitive.
+  Unquoted names are folded to lower case and quoted names (e.g.
+  `'"Client"'`) are matched exactly. The quotes of a group entry must enclose
+  the `+` (e.g. `'"+Client"'`).
 * If `set_user.nosuperuser_target_allowlist` is the empty set , `''`,
   `set_user(text)` transitions to non-superusers are blocked for all users.
 * If `set_user.nosuperuser_target_allowlist` is the wildcard character, `'*'`,

@@ -163,15 +163,21 @@ check_user_allowlist(Oid userId, const char *allowlist)
 		{
 			Oid roleId;
 			roleId = get_role_oid(elem + 1, false);
-			if (!OidIsValid(roleId))
-				result = false;
 
-			/* Check to see if userId is contained by group role in allowlist */
-			result = has_privs_of_role(userId, roleId);
+			/*
+			 * Check to see if userId is contained by group role in allowlist.
+			 * Do not overwrite a match from a prior entry.
+			 */
+			if (has_privs_of_role(userId, roleId))
+				result = true;
 		}
 		else
 		{
-			if (pg_strcasecmp(elem, GetUserNameFromId(userId, false)) == 0)
+			/*
+			 * Role names are case-sensitive so use an exact comparison.
+			 * SplitIdentifierString() has already downcased unquoted names.
+			 */
+			if (strcmp(elem, GetUserNameFromId(userId, false)) == 0)
 				result = true;
 			else if(pg_strcasecmp(elem, ALLOWLIST_WILDCARD) == 0)
 				/* No explicit usernames intermingled with wildcard. */
