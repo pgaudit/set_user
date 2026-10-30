@@ -75,6 +75,10 @@ SELECT set_user('bob', 'secret');
 SELECT SESSION_USER, CURRENT_USER;
 RESET ROLE; -- should fail
 RESET SESSION AUTHORIZATION; -- should fail
+DISCARD ALL; -- should fail
+DISCARD PLANS; -- succeed
+DISCARD SEQUENCES; -- succeed
+DISCARD TEMP; -- succeed
 SELECT SESSION_USER, CURRENT_USER;
 
 SELECT reset_user(); -- should fail
@@ -232,6 +236,7 @@ SELECT reset_user();
 RESET SESSION AUTHORIZATION;
 SELECT SESSION_USER, CURRENT_USER;
 RESET ALL; -- succeed
+DISCARD ALL; -- succeed
 
 -- test nosuperuser_target_allowlist
 \c -

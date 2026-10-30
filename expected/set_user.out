@@ -140,6 +140,12 @@ HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 RESET SESSION AUTHORIZATION; -- should fail
 ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
 HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+DISCARD ALL; -- should fail
+ERROR:  "DISCARD ALL" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+DISCARD PLANS; -- succeed
+DISCARD SEQUENCES; -- succeed
+DISCARD TEMP; -- succeed
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
@@ -455,6 +461,7 @@ SELECT SESSION_USER, CURRENT_USER;
 (1 row)
 
 RESET ALL; -- succeed
+DISCARD ALL; -- succeed
 -- test nosuperuser_target_allowlist
 \c -
 ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = 'joe,+newbs';

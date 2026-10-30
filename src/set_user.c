@@ -666,6 +666,21 @@ PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
 				}
 				break;
 			}
+			case T_DiscardStmt:
+				/*
+				 * DISCARD ALL resets session_authorization, which also resets
+				 * the role. The session would revert to the original role
+				 * without checking the reset token or logging the transition
+				 * so block it. Other DISCARD variants do not change the role.
+				 */
+				if (((DiscardStmt *) pstmt->utilityStmt)->target == DISCARD_ALL)
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("\"DISCARD ALL\" blocked by set_user"),
+							 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
+				}
+				break;
 			default:
 				break;
 		}
