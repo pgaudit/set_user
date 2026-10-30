@@ -54,6 +54,7 @@ SET log_statement = 'none';
 SET log_statement = DEFAULT;
 RESET log_statement;
 BEGIN; SET LOCAL log_statement = 'none'; ABORT;
+SET "Log_Statement" = 'none';
 
 -- set_config() should fail
 SELECT set_config('wal_level', 'minimal', false);
@@ -75,6 +76,9 @@ SELECT set_user('bob', 'secret');
 SELECT SESSION_USER, CURRENT_USER;
 RESET ROLE; -- should fail
 RESET SESSION AUTHORIZATION; -- should fail
+SET "Role" = 'none'; -- should fail
+RESET "ROLE"; -- should fail
+SET "Session_Authorization" = 'dba'; -- should fail
 DISCARD ALL; -- should fail
 DISCARD PLANS; -- succeed
 DISCARD SEQUENCES; -- succeed

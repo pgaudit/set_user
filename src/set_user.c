@@ -658,21 +658,25 @@ PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
 				if (vstmt->name == NULL)
 					elog(ERROR, "unexpected NULL name in VariableSetStmt");
 
-				if ((strcmp(vstmt->name, "log_statement") == 0) &&
+				/*
+				 * GUC names are case-insensitive: SET "Role" = 'none'
+				 * changes the role just like SET ROLE NONE does.
+				 */
+				if ((pg_strcasecmp(vstmt->name, "log_statement") == 0) &&
 					Block_LS)
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("\"SET log_statement\" blocked by set_user config")));
 				}
-				else if ((strcmp(vstmt->name, "role") == 0))
+				else if ((pg_strcasecmp(vstmt->name, "role") == 0))
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("\"SET/RESET ROLE\" blocked by set_user"),
 							 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
 				}
-				else if ((strcmp(vstmt->name, "session_authorization") == 0))
+				else if ((pg_strcasecmp(vstmt->name, "session_authorization") == 0))
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),

@@ -82,6 +82,8 @@ RESET log_statement;
 ERROR:  "SET log_statement" blocked by set_user config
 BEGIN; SET LOCAL log_statement = 'none'; ABORT;
 ERROR:  "SET log_statement" blocked by set_user config
+SET "Log_Statement" = 'none';
+ERROR:  "SET log_statement" blocked by set_user config
 -- set_config() should fail
 SELECT set_config('wal_level', 'minimal', false);
 ERROR:  "pg_catalog.set_config(pg_catalog.text,pg_catalog.text,boolean)" blocked by set_user
@@ -138,6 +140,15 @@ RESET ROLE; -- should fail
 ERROR:  "SET/RESET ROLE" blocked by set_user
 HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 RESET SESSION AUTHORIZATION; -- should fail
+ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+SET "Role" = 'none'; -- should fail
+ERROR:  "SET/RESET ROLE" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+RESET "ROLE"; -- should fail
+ERROR:  "SET/RESET ROLE" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+SET "Session_Authorization" = 'dba'; -- should fail
 ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
 HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 DISCARD ALL; -- should fail
