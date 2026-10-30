@@ -238,6 +238,72 @@ SELECT SESSION_USER, CURRENT_USER;
 RESET ALL; -- succeed
 DISCARD ALL; -- succeed
 
+-- test function SET clauses
+CREATE FUNCTION set_role_none() RETURNS text LANGUAGE sql
+    SET role = 'none' AS $$ SELECT 'ok'::text $$;
+CREATE FUNCTION set_search_path() RETURNS text LANGUAGE sql
+    SET search_path = 'pg_catalog' AS $$ SELECT 'ok'::text $$;
+CREATE FUNCTION security_definer() RETURNS text LANGUAGE sql SECURITY DEFINER
+    SET search_path = 'pg_catalog' AS $$ SELECT current_user::text $$;
+CREATE FUNCTION call_set_role_none() RETURNS text LANGUAGE plpgsql
+    AS $$ BEGIN RETURN set_role_none(); END $$;
+CREATE TABLE set_clause_call (id int);
+GRANT INSERT ON set_clause_call TO bob;
+CREATE FUNCTION trigger_call_set_role_none() RETURNS trigger LANGUAGE plpgsql
+    AS $$ BEGIN PERFORM set_role_none(); RETURN NEW; END $$;
+CREATE TRIGGER set_clause_call_trigger BEFORE INSERT ON set_clause_call
+    FOR EACH ROW EXECUTE FUNCTION trigger_call_set_role_none();
+CREATE TABLE set_clause_trigger (id int);
+GRANT INSERT ON set_clause_trigger TO bob;
+CREATE FUNCTION trigger_set_role_none() RETURNS trigger LANGUAGE plpgsql
+    SET role = 'none' AS $$ BEGIN RETURN NEW; END $$;
+CREATE TRIGGER set_clause_trigger_trigger BEFORE INSERT ON set_clause_trigger
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_role_none();
+SELECT set_role_none(); -- succeed
+SELECT call_set_role_none(); -- succeed
+INSERT INTO set_clause_call VALUES (1); -- succeed
+INSERT INTO set_clause_trigger VALUES (1); -- succeed
+
+SET SESSION AUTHORIZATION dba;
+SELECT set_user('bob', 'secret');
+CREATE FUNCTION pg_temp.f() RETURNS text LANGUAGE sql
+    SET role = 'none' AS $$ SELECT current_user::text $$; -- should fail
+CREATE FUNCTION pg_temp.f() RETURNS text LANGUAGE sql
+    SET "Role" FROM CURRENT AS $$ SELECT current_user::text $$; -- should fail
+CREATE FUNCTION pg_temp.f() RETURNS text LANGUAGE sql
+    AS $$ SELECT current_user::text $$; -- succeed
+ALTER FUNCTION pg_temp.f() SET session_authorization = 'dba'; -- should fail
+ALTER FUNCTION pg_temp.f() RESET role; -- succeed
+SELECT set_role_none(); -- should fail
+SELECT call_set_role_none(); -- should fail, a nested call is checked
+INSERT INTO set_clause_call VALUES (2); -- should fail, a call from a trigger is checked
+SELECT set_search_path(); -- succeed
+SELECT security_definer(); -- succeed, runs as the function owner
+SELECT SESSION_USER, CURRENT_USER;
+
+SELECT reset_user('secret'); -- succeed
+RESET SESSION AUTHORIZATION;
+
+-- A trigger function with a blocked SET clause is caught by the fmgr hook after
+-- the SET clause has been applied so the session is terminated. Run it in a
+-- separate session so this one survives.
+\setenv PGHOST :HOST
+\setenv PGPORT :PORT
+\setenv PGUSER :USER
+\setenv PGDATABASE :DBNAME
+\! psql -X -q -t -A -c "SET SESSION AUTHORIZATION dba" -c "SELECT set_user('bob', 'secret')" -c "INSERT INTO set_clause_trigger VALUES (2)"
+SELECT count(*) FROM set_clause_trigger; -- 1, the insert was rolled back
+
+DROP TABLE set_clause_call;
+DROP TABLE set_clause_trigger;
+DROP FUNCTION pg_temp.f();
+DROP FUNCTION trigger_call_set_role_none();
+DROP FUNCTION trigger_set_role_none();
+DROP FUNCTION call_set_role_none();
+DROP FUNCTION set_role_none();
+DROP FUNCTION set_search_path();
+DROP FUNCTION security_definer();
+
 -- test nosuperuser_target_allowlist
 \c -
 ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = 'joe,+newbs';

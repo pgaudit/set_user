@@ -38,14 +38,17 @@
 #include "catalog/objectaddress.h"
 #include "catalog/pg_authid.h"
 #include "catalog/pg_proc.h"
+#include "catalog/pg_type.h"
 #include "miscadmin.h"
 #include "parser/parse_func.h"
 #include "tcop/utility.h"
 #include "utils/acl.h"
+#include "utils/array.h"
 #include "utils/builtins.h"
 #include "utils/catcache.h"
 #include "utils/fmgroids.h"
 #include "utils/guc.h"
+#include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
@@ -62,6 +65,7 @@ PG_MODULE_MAGIC_EXT(.name = "set_user", .version = EXTVERSION);
 
 static ProcessUtility_hook_type prev_hook = NULL;
 static object_access_hook_type next_object_access_hook;
+static fmgr_hook_type next_fmgr_hook = NULL;
 
 /* transaction handler */
 static void set_user_xact_handler (XactEvent event, void *arg);
@@ -112,6 +116,12 @@ static void set_user_object_access(ObjectAccessType access, Oid classId, Oid obj
 static void set_user_block_set_config(Oid functionId);
 static void set_user_check_proc(HeapTuple procTup, Relation rel);
 static void set_user_cache_proc(Oid functionId);
+
+/* used to block function SET clauses */
+static bool set_user_blocked_guc(const char *name);
+static void set_user_check_set_clauses(List *options);
+static void set_user_check_proconfig(Oid functionId, int elevel);
+static void set_user_fmgr_hook(FmgrHookEventType event, FmgrInfo *flinfo, Datum *arg);
 
 /*
  * set_user_token_equal
@@ -583,6 +593,10 @@ _PG_init(void)
 	next_object_access_hook = object_access_hook;
 	object_access_hook = set_user_object_access;
 
+	/* Function manager hook */
+	next_fmgr_hook = fmgr_hook;
+	fmgr_hook = set_user_fmgr_hook;
+
 	RegisterXactCallback(set_user_xact_handler, NULL);
 }
 
@@ -590,6 +604,7 @@ void
 _PG_fini(void)
 {
 	ProcessUtility_hook = prev_hook;
+	fmgr_hook = next_fmgr_hook;
 }
 
 /*
@@ -666,6 +681,17 @@ PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
 				}
 				break;
 			}
+			case T_CreateFunctionStmt:
+				/*
+				 * The SET clauses of a function are applied while its body
+				 * is validated, and again whenever it is called, without
+				 * passing through this hook. See set_user_check_proconfig().
+				 */
+				set_user_check_set_clauses(((CreateFunctionStmt *) pstmt->utilityStmt)->options);
+				break;
+			case T_AlterFunctionStmt:
+				set_user_check_set_clauses(((AlterFunctionStmt *) pstmt->utilityStmt)->actions);
+				break;
 			case T_DiscardStmt:
 				/*
 				 * DISCARD ALL resets session_authorization, which also resets
@@ -803,6 +829,9 @@ set_user_object_access (ObjectAccessType access, Oid classId, Oid objectId, int 
 
 				/* Now see if this function is blocked */
 				set_user_block_set_config(objectId);
+
+				/* Block functions that SET role or session_authorization */
+				set_user_check_proconfig(objectId, ERROR);
 				break;
 			}
 			case OAT_POST_ALTER:
@@ -974,4 +1003,145 @@ set_user_cache_proc(Oid functionId)
 
 	systable_endscan(sscan);
 	table_close(rel, NoLock);
+}
+
+/*
+ * set_user_blocked_guc
+ *
+ * Return true if the named parameter must not be changed by a function SET
+ * clause while set_user is active. These are the same parameters the
+ * ProcessUtility hook blocks for plain SET/RESET. GUC names are
+ * case-insensitive, so match them the way guc.c does.
+ */
+static bool
+set_user_blocked_guc(const char *name)
+{
+	if (name == NULL)
+		return false;
+
+	if (pg_strcasecmp(name, "role") == 0 ||
+		pg_strcasecmp(name, "session_authorization") == 0)
+		return true;
+
+	if (Block_LS && pg_strcasecmp(name, "log_statement") == 0)
+		return true;
+
+	return false;
+}
+
+/*
+ * set_user_check_set_clauses
+ *
+ * Error out if the options of a CREATE/ALTER FUNCTION or PROCEDURE statement
+ * contain a SET clause for a blocked parameter. CREATE FUNCTION applies the
+ * SET clauses while running the language validator, so the function does not
+ * even have to be called to change the role.
+ */
+static void
+set_user_check_set_clauses(List *options)
+{
+	ListCell   *lc;
+
+	foreach(lc, options)
+	{
+		DefElem	   *defel = (DefElem *) lfirst(lc);
+		VariableSetStmt *sstmt;
+
+		if (strcmp(defel->defname, "set") != 0)
+			continue;
+
+		sstmt = (VariableSetStmt *) defel->arg;
+
+		/* Removing a SET clause is harmless */
+		if (sstmt->kind == VAR_RESET || sstmt->kind == VAR_RESET_ALL)
+			continue;
+
+		if (set_user_blocked_guc(sstmt->name))
+			ereport(ERROR,
+					(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+					 errmsg("function SET clause for parameter \"%s\" blocked by set_user",
+							sstmt->name),
+					 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
+	}
+}
+
+/*
+ * set_user_check_proconfig
+ *
+ * Report at elevel if the given function has a SET clause for a blocked
+ * parameter.
+ *
+ * Function SET clauses are applied by fmgr_security_definer() and never pass
+ * through the ProcessUtility hook. SET role = 'none' or SET
+ * session_authorization = '<original role>' would make the function run as
+ * the original role without the reset token and without an audit log entry.
+ * Worse, since set_user switches roles with SetCurrentRoleId() rather than
+ * through the "role" GUC, restoring the GUC when the function exits (or when
+ * the transaction aborts) leaves the session as the original role for good.
+ */
+static void
+set_user_check_proconfig(Oid functionId, int elevel)
+{
+	HeapTuple	procTup;
+	Datum		proconfig;
+	bool		isnull;
+	char	   *blocked = NULL;
+
+	procTup = SearchSysCache1(PROCOID, ObjectIdGetDatum(functionId));
+	if (!HeapTupleIsValid(procTup))
+		return;
+
+	proconfig = SysCacheGetAttr(PROCOID, procTup, Anum_pg_proc_proconfig, &isnull);
+	if (!isnull)
+	{
+		Datum	   *elems;
+		int			nelems;
+		int			i;
+
+		/* text has typlen -1, typbyval false and typalign 'i' */
+		deconstruct_array(DatumGetArrayTypeP(proconfig), TEXTOID, -1, false,
+						  TYPALIGN_INT, &elems, NULL, &nelems);
+
+		for (i = 0; i < nelems && blocked == NULL; i++)
+		{
+			char	   *name;
+			char	   *value;
+
+			ParseLongOption(TextDatumGetCString(elems[i]), &name, &value);
+			if (set_user_blocked_guc(name))
+				blocked = name;
+		}
+	}
+
+	ReleaseSysCache(procTup);
+
+	if (blocked != NULL)
+		ereport(elevel,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("function \"%s\" with SET clause for parameter \"%s\" blocked by set_user",
+						get_func_name(functionId), blocked),
+				 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
+}
+
+/*
+ * set_user_fmgr_hook
+ *
+ * Backstop for set_user_check_proconfig() on call paths that do not invoke
+ * the object access hook first, such as trigger functions.
+ *
+ * By the time FHET_START is called the function's SET clauses have already
+ * been applied, so the role has already changed. Raising ERROR here is not
+ * enough: the abort restores the "role" GUC, which puts the session back to
+ * the original role, the same as a normal exit from the function. Terminate
+ * the session instead.
+ */
+static void
+set_user_fmgr_hook(FmgrHookEventType event, FmgrInfo *flinfo, Datum *arg)
+{
+	if (event == FHET_START &&
+		curr_state != NULL && curr_state->userid != InvalidOid)
+		set_user_check_proconfig(flinfo->fn_oid, FATAL);
+
+	if (next_fmgr_hook)
+		(*next_fmgr_hook) (event, flinfo, arg);
 }
