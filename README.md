@@ -100,6 +100,8 @@ called instead of `reset_user()`:
 * If the tokens do not match, or if a `token` was provided to `set_user` but not
   `reset_user`, an ERROR occurs.
 
+See [Caveats](#caveats) for the limits of the `token`.
+
 When set_session_auth(text) is called, the effective session and current user is
 switched to the rolename supplied, irrevocably. Unlike set_user() or set_user_u(),
 it does not affect logging nor allowed statements. If `set_user.exit_on_error` is
@@ -275,6 +277,17 @@ In its current state, this extension cannot prevent `rolename` from performing a
 variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
+
+The reset `token` is a best-effort safeguard, not a security boundary. While
+`set_user()` is active, set_user blocks the statements that it knows can change
+the current role, such as `SET ROLE`, `SET SESSION AUTHORIZATION`, `DISCARD ALL`
+and functions with a `SET role` clause. These blocks cover specific statements
+rather than every possible path. Code running in the session that finds another
+way to change the role can return to the original role without the `token` and
+the role transition will not be logged. Do not rely on the `token` to protect
+the original role from untrusted code. For example, a connection pooler that
+hands escalated sessions to untrusted clients should connect as a role whose
+privileges are acceptable for those clients to have.
 
 ##  Post-Execution Hooks
 
