@@ -77,6 +77,9 @@ RESET SESSION AUTHORIZATION; -- should fail
 SELECT SESSION_USER, CURRENT_USER;
 
 SELECT reset_user(); -- should fail
+SELECT reset_user('secreT'); -- should fail
+SELECT reset_user('secre'); -- should fail
+SELECT reset_user('secrets'); -- should fail
 SELECT SESSION_USER, CURRENT_USER;
 
 SELECT reset_user('secret'); -- succeed

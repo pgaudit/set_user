@@ -114,6 +114,23 @@ static void set_user_check_proc(HeapTuple procTup, Relation rel);
 static void set_user_cache_proc(Oid functionId);
 
 /*
+ * set_user_token_equal
+ *
+ * Compare reset tokens in constant time so the comparison does not leak the
+ * stored token through timing. The token length is not considered secret.
+ */
+static bool
+set_user_token_equal(const char *token1, const char *token2)
+{
+	size_t		len = strlen(token1);
+
+	if (strlen(token2) != len)
+		return false;
+
+	return timingsafe_bcmp(token1, token2, len) == 0;
+}
+
+/*
  * check_user_allowlist
  *
  * Check if user is contained by allowlist
@@ -416,7 +433,8 @@ set_user(PG_FUNCTION_ARGS)
 			}
 
 			pending_state->reset_token = text_to_cstring(PG_GETARG_TEXT_PP(0));
-			if (strcmp(prev_state->reset_token, pending_state->reset_token) != 0)
+			if (!set_user_token_equal(prev_state->reset_token,
+									  pending_state->reset_token))
 			{
 				ereport(ERROR,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),

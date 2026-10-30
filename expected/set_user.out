@@ -145,6 +145,12 @@ SELECT SESSION_USER, CURRENT_USER;
 
 SELECT reset_user(); -- should fail
 ERROR:  reset token required but not provided
+SELECT reset_user('secreT'); -- should fail
+ERROR:  incorrect reset token provided
+SELECT reset_user('secre'); -- should fail
+ERROR:  incorrect reset token provided
+SELECT reset_user('secrets'); -- should fail
+ERROR:  incorrect reset token provided
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
