@@ -98,6 +98,10 @@ static const char *set_config_proc_name = "set_config_by_name";
 static List *set_config_oid_cache = NIL;
 
 static void PostSetUserHook(bool is_reset, const char *newuser);
+static void PU_hook(PlannedStmt *pstmt, const char *queryString,
+					bool ReadOnlyTree, ProcessUtilityContext context,
+					ParamListInfo params, QueryEnvironment *queryEnv,
+					DestReceiver *dest, QueryCompletion *qc);
 
 extern Datum set_user(PG_FUNCTION_ARGS);
 void _PG_init(void);
@@ -565,12 +569,15 @@ _PG_fini(void)
 }
 
 /*
- * _PU_HOOK
+ * PU_hook
  *
- * Compatibility shim for PU_hook. Handles changing function signature
- * between versions of PostgreSQL.
+ * ProcessUtility hook that blocks restricted utility statements while a
+ * set_user() transition is active.
  */
-_PU_HOOK
+static void
+PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
+		ProcessUtilityContext context, ParamListInfo params,
+		QueryEnvironment *queryEnv, DestReceiver *dest, QueryCompletion *qc)
 {
 	/* if set_user has been used to transition, enforce set_user GUCs */
 	if (curr_state != NULL && curr_state->userid != InvalidOid)
@@ -623,16 +630,16 @@ _PU_HOOK
 	/*
 	 * Now pass-off handling either to the previous ProcessUtility hook
 	 * or to the standard ProcessUtility.
-	 *
-	 * These functions are also called by their compatibility variants.
 	 */
 	if (prev_hook)
 	{
-		_prev_hook;
+		prev_hook(pstmt, queryString, ReadOnlyTree, context, params, queryEnv,
+				  dest, qc);
 	}
 	else
 	{
-		_standard_ProcessUtility;
+		standard_ProcessUtility(pstmt, queryString, ReadOnlyTree, context,
+								params, queryEnv, dest, qc);
 	}
 }
 
@@ -777,7 +784,7 @@ set_user_block_set_config(Oid functionId)
 		object.objectId = functionId;
 		object.objectSubId = 0;
 
-		funcname = getObjectIdentity(&object);
+		funcname = getObjectIdentity(&object, false);
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 				 errmsg("\"%s\" blocked by set_user", funcname),

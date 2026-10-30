@@ -268,9 +268,6 @@ variety of nefarious or otherwise undesireable actions. However, these actions
 will be logged providing an audit trail, which could also be used to trigger
 alerts.
 
-This extension supports PostgreSQL versions 12 and higher. Prior versions of
-PostgreSQL are supported by prior versions of set_user.
-
 ##  Post-Execution Hooks
 
 `set_user` exposes two hooks that may be used to control post-execution behavior
@@ -326,7 +323,8 @@ memory before their implementations can access them.
 
 ### Requirements
 
-* PostgreSQL 13 or higher.
+* PostgreSQL 14 or higher. Prior versions of PostgreSQL are supported by prior
+  versions of set_user.
 
 ### Compile and Install
 

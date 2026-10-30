@@ -41,61 +41,15 @@
 #endif /* 17+ */
 
 /*
- * PostgreSQL version 14+
- *
- * Introduces ReadOnlyTree boolean
+ * Remaining supported versions
  */
-#if PG_VERSION_NUM >= 140000
-#define _PU_HOOK \
-	static void PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree, \
-						ProcessUtilityContext context, ParamListInfo params, \
-						QueryEnvironment *queryEnv, \
-						DestReceiver *dest, QueryCompletion *qc)
-
-#define _prev_hook \
-	prev_hook(pstmt, queryString, ReadOnlyTree, context, params, queryEnv, dest, qc)
-
-#define _standard_ProcessUtility \
-	standard_ProcessUtility(pstmt, queryString, ReadOnlyTree, context, params, queryEnv, dest, qc)
-
-#define getObjectIdentity(address) \
-	getObjectIdentity(address,false)
-
-#endif /* 14+ */
-
-/*
- * PostgreSQL version 13+
- *
- * Introduces QueryCompletion struct
- */
-#if PG_VERSION_NUM >= 130000
-#ifndef _PU_HOOK
-#define _PU_HOOK \
-	static void PU_hook(PlannedStmt *pstmt, const char *queryString, \
-						ProcessUtilityContext context, ParamListInfo params, \
-						QueryEnvironment *queryEnv, \
-						DestReceiver *dest, QueryCompletion *qc)
-
-#define _prev_hook \
-	prev_hook(pstmt, queryString, context, params, queryEnv, dest, qc)
-
-#define _standard_ProcessUtility \
-	standard_ProcessUtility(pstmt, queryString,	context, params, queryEnv, dest, qc)
-#endif
-
 #ifndef INITSESSIONUSER
 #define INITSESSIONUSER
 #define _InitializeSessionUserId(name,ouserid) InitializeSessionUserId(name,ouserid)
-
 #endif
 
-#endif /* 13+ */
-
-#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 130000
-#error "This extension only builds with PostgreSQL 13 or later"
+#if !defined(PG_VERSION_NUM) || PG_VERSION_NUM < 140000
+#error "This extension only builds with PostgreSQL 14 or later"
 #endif
-
-/* Use our version-specific static declaration here */
-_PU_HOOK;
 
 #endif	/* SET_USER_COMPAT_H */
