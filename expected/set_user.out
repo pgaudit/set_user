@@ -100,6 +100,9 @@ HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 RESET SESSION AUTHORIZATION; -- should fail
 ERROR:  "SET/RESET SESSION AUTHORIZATION" blocked by set_user
 HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
+RESET ALL; -- should fail
+ERROR:  "RESET ALL" blocked by set_user
+HINT:  Use "SELECT set_user();" or "SELECT reset_user();" instead.
 SELECT SESSION_USER, CURRENT_USER;
  session_user | current_user 
 --------------+--------------
@@ -437,6 +440,21 @@ OR
 
 -- undo those changes
 ABORT;
+-- test statements that are only blocked while escalated
+SELECT reset_user();
+ reset_user 
+------------
+ OK
+(1 row)
+
+RESET SESSION AUTHORIZATION;
+SELECT SESSION_USER, CURRENT_USER;
+ session_user | current_user 
+--------------+--------------
+ postgres     | postgres
+(1 row)
+
+RESET ALL; -- succeed
 -- test nosuperuser_target_allowlist
 \c -
 ALTER SYSTEM SET set_user.nosuperuser_target_allowlist = 'joe,+newbs';

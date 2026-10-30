@@ -64,6 +64,7 @@ UPDATE pg_settings SET setting = 'none' WHERE name = 'log_statement';
 -- test reset_user
 RESET ROLE; -- should fail
 RESET SESSION AUTHORIZATION; -- should fail
+RESET ALL; -- should fail
 SELECT SESSION_USER, CURRENT_USER;
 
 SELECT reset_user();  -- succeed
@@ -225,6 +226,12 @@ OR
 
 -- undo those changes
 ABORT;
+
+-- test statements that are only blocked while escalated
+SELECT reset_user();
+RESET SESSION AUTHORIZATION;
+SELECT SESSION_USER, CURRENT_USER;
+RESET ALL; -- succeed
 
 -- test nosuperuser_target_allowlist
 \c -

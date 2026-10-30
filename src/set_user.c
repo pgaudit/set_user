@@ -621,24 +621,43 @@ PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
 							 errmsg("COPY PROGRAM blocked by set_user config")));
 				break;
 			case T_VariableSetStmt:
-				if ((strcmp(((VariableSetStmt *)pstmt->utilityStmt)->name,
-					 "log_statement") == 0) &&
+			{
+				VariableSetStmt *vstmt = (VariableSetStmt *) pstmt->utilityStmt;
+
+				/*
+				 * RESET ALL would reset log_statement so block it. RESET ALL
+				 * has a NULL name so check the kind before comparing the name.
+				 */
+				if (vstmt->kind == VAR_RESET_ALL)
+				{
+					ereport(ERROR,
+							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							 errmsg("\"RESET ALL\" blocked by set_user"),
+							 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
+				}
+
+				/*
+				 * No other kind should have a NULL name. Error rather than
+				 * allow a statement that cannot be checked.
+				 */
+				if (vstmt->name == NULL)
+					elog(ERROR, "unexpected NULL name in VariableSetStmt");
+
+				if ((strcmp(vstmt->name, "log_statement") == 0) &&
 					Block_LS)
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("\"SET log_statement\" blocked by set_user config")));
 				}
-				else if ((strcmp(((VariableSetStmt *)pstmt->utilityStmt)->name,
-					 "role") == 0))
+				else if ((strcmp(vstmt->name, "role") == 0))
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 							 errmsg("\"SET/RESET ROLE\" blocked by set_user"),
 							 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
 				}
-				else if ((strcmp(((VariableSetStmt *)pstmt->utilityStmt)->name,
-					 "session_authorization") == 0))
+				else if ((strcmp(vstmt->name, "session_authorization") == 0))
 				{
 					ereport(ERROR,
 							(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -646,6 +665,7 @@ PU_hook(PlannedStmt *pstmt, const char *queryString, bool ReadOnlyTree,
 							 errhint("Use \"SELECT set_user();\" or \"SELECT reset_user();\" instead.")));
 				}
 				break;
+			}
 			default:
 				break;
 		}
